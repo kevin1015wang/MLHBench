@@ -1,6 +1,17 @@
 import type { PrizeReviewResult } from "@/lib/review/prize-results";
 import type { Project, ProjectProcessingStatus } from "@/lib/store";
 
+// Turns a generated prize slug (e.g. "best-use-of-gemini-api") into a
+// readable label for prize categories that don't yet have a matching
+// prize_categories catalog row (which supplies a curated name/short_name).
+export function deslugify(slug: string): string {
+  return slug
+    .split("-")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
 // Parse prize_results
 export function parsePrizeResults(
   prizeResults: unknown,

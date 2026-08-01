@@ -7,7 +7,7 @@ export interface FilterState {
   title?: string;
   status?: string[];
   complexity?: string[];
-  prizeTrack?: string | null;
+  prizeTracks?: string[];
   techStack?: string[];
   techStackMode?: "intersection" | "union";
   hasGithub?: boolean;

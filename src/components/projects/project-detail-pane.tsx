@@ -3,6 +3,7 @@
 import {
   CheckCircle2,
   Code2,
+  ExternalLink,
   Gavel,
   HelpCircle,
   Info,
@@ -10,6 +11,8 @@ import {
   Loader2,
   Play,
   Star,
+  Users,
+  Video,
   XCircle,
 } from "lucide-react";
 import * as React from "react";
@@ -17,6 +20,12 @@ import { toast } from "sonner";
 import { DevpostIcon } from "@/components/icons/devpost-icon";
 import { GithubCopilotIcon } from "@/components/icons/github-copilot-icon";
 import { GithubIcon } from "@/components/icons/github-icon";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +39,7 @@ import {
 } from "@/components/ui/tooltip";
 import { usePrizeCategories } from "@/hooks/use-prize-categories";
 import {
+  deslugify,
   getPrizeStatusDisplay,
   getPrizeTracks,
   parsePrizeResults,
@@ -198,6 +208,49 @@ function NotesInput({ project }: { readonly project: Project }) {
   );
 }
 
+function getCsvRow(project: Project): Record<string, string> {
+  const csvRow = project.csv_row;
+  if (!csvRow || typeof csvRow !== "object" || Array.isArray(csvRow)) {
+    return {};
+  }
+  return csvRow as Record<string, string>;
+}
+
+// Devpost's CSV export lists the primary submitter separately from up to 6
+// additional "Team Member N First/Last Name/Email" columns preserved in csv_row.
+function getTeamMembers(project: Project): Array<{
+  name: string;
+  email: string | null;
+}> {
+  const csvRow = getCsvRow(project);
+  const members: Array<{ name: string; email: string | null }> = [];
+
+  const primaryName = [
+    project.submitter_first_name,
+    project.submitter_last_name,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  if (primaryName || project.submitter_email) {
+    members.push({
+      name: primaryName || "Submitter",
+      email: project.submitter_email,
+    });
+  }
+
+  for (let i = 1; i <= 6; i++) {
+    const firstName = csvRow[`Team Member ${i} First Name`]?.trim();
+    const lastName = csvRow[`Team Member ${i} Last Name`]?.trim();
+    const email = csvRow[`Team Member ${i} Email`]?.trim();
+    const name = [firstName, lastName].filter(Boolean).join(" ");
+    if (name || email) {
+      members.push({ name: name || "Team member", email: email || null });
+    }
+  }
+
+  return members;
+}
+
 interface ProjectDetailPaneProps {
   readonly project: Project | null;
   readonly open: boolean;
@@ -219,6 +272,13 @@ export function ProjectDetailPane({
   const { favoriteProjects, toggleFavoriteProject } = useStore();
 
   if (!project) return null;
+
+  const csvRow = getCsvRow(project);
+  const teamMembers = getTeamMembers(project);
+  const builtWith = project.built_with
+    .split(",")
+    .map((tech) => tech.trim())
+    .filter(Boolean);
 
   const disableAnalysis = project.status?.startsWith("processing") ?? false;
   const rerunLabel = project.status === "unprocessed" ? "Run" : "Re-run";
@@ -334,6 +394,125 @@ export function ProjectDetailPane({
 
         <div className="flex-1 overflow-y-auto">
           <div className="px-8 py-6 space-y-4 bg-gray-50/50">
+            {/* Submission Details */}
+            <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm space-y-4">
+              <div className="flex items-center gap-2 text-gray-500">
+                <Info className="w-5 h-5" />
+                <span className="text-sm font-medium">About the Project</span>
+              </div>
+              {project.about_the_project ? (
+                <Markdown className="text-gray-700">
+                  {project.about_the_project}
+                </Markdown>
+              ) : (
+                <p className="text-sm text-gray-500">
+                  No description provided.
+                </p>
+              )}
+
+              {builtWith.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {builtWith.map((tech) => (
+                    <Badge key={tech} variant="secondary">
+                      {tech}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+
+              {project.notes && (
+                <div className="border-t border-gray-100 pt-3">
+                  <div className="text-xs font-medium text-gray-400 mb-1">
+                    Submitter Notes
+                  </div>
+                  <p className="text-sm text-gray-700">{project.notes}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm space-y-3">
+                <div className="flex items-center gap-2 text-gray-500">
+                  <Users className="w-5 h-5" />
+                  <span className="text-sm font-medium">
+                    Team {project.team_size ? `(${project.team_size})` : ""}
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  {teamMembers.length > 0 ? (
+                    teamMembers.map((member) => (
+                      <div
+                        key={`${member.name}-${member.email ?? ""}`}
+                        className="text-sm text-gray-700"
+                      >
+                        {member.name}
+                        {member.email && (
+                          <span className="text-gray-400">
+                            {" "}
+                            · {member.email}
+                          </span>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-500">
+                      No team info available.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm space-y-3">
+                <div className="flex items-center gap-2 text-gray-500">
+                  <Video className="w-5 h-5" />
+                  <span className="text-sm font-medium">Links</span>
+                </div>
+                <div className="space-y-1">
+                  {project.video_demo_link && (
+                    <a
+                      href={project.video_demo_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-sm text-blue-600 hover:underline"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                      Video Demo
+                    </a>
+                  )}
+                  {project.try_it_out_links.map((link) => (
+                    <a
+                      key={link}
+                      href={link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-sm text-blue-600 hover:underline break-all"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                      {link}
+                    </a>
+                  ))}
+                  {!project.video_demo_link &&
+                    project.try_it_out_links.length === 0 && (
+                      <p className="text-sm text-gray-500">
+                        No additional links provided.
+                      </p>
+                    )}
+                </div>
+              </div>
+            </div>
+
+            {project.opt_in_prizes && (
+              <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm space-y-2">
+                <div className="flex items-center gap-2 text-gray-500">
+                  <Gavel className="w-5 h-5" />
+                  <span className="text-sm font-medium">
+                    All Opted-In Prizes
+                  </span>
+                </div>
+                <p className="text-sm text-gray-700">{project.opt_in_prizes}</p>
+              </div>
+            )}
+
             {/* Code Review Agent Section */}
             {/*! Bento Box Stats */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -475,7 +654,7 @@ export function ProjectDetailPane({
                       const fullName =
                         prizeCategoryNameMap.get(trackSlug) ||
                         prizeCategoryMap[trackSlug] ||
-                        trackSlug;
+                        deslugify(trackSlug);
                       const { status, message } = getPrizeStatusDisplay(result);
 
                       let StatusIcon = null;
@@ -535,6 +714,35 @@ export function ProjectDetailPane({
                 </div>
               );
             })()}
+
+            {/* Raw CSV Data */}
+            {Object.keys(csvRow).length > 0 && (
+              <Accordion
+                type="single"
+                collapsible
+                className="bg-white border border-gray-100 rounded-xl px-5 shadow-sm"
+              >
+                <AccordionItem value="raw-csv">
+                  <AccordionTrigger className="text-sm font-medium text-gray-700">
+                    All Submission Fields (Raw CSV Data)
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                      {Object.entries(csvRow).map(([key, value]) => (
+                        <div key={key} className="min-w-0">
+                          <div className="text-xs font-medium text-gray-400">
+                            {key}
+                          </div>
+                          <div className="text-gray-700 wrap-break-word">
+                            {value || "—"}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            )}
           </div>
         </div>
 

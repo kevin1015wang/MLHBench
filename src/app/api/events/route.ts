@@ -55,21 +55,15 @@ export async function POST(request: Request) {
 
     const body = await request.json().catch(() => null);
     const name = typeof body?.name === "string" ? body.name.trim() : "";
-    const startsAt = body?.starts_at;
-    const endsAt = body?.ends_at;
+    const startsAt =
+      typeof body?.starts_at === "string" ? body.starts_at : null;
+    const endsAt = typeof body?.ends_at === "string" ? body.ends_at : null;
 
     if (!name) {
       return NextResponse.json({ error: "name is required" }, { status: 400 });
     }
 
-    if (typeof startsAt !== "string" || typeof endsAt !== "string") {
-      return NextResponse.json(
-        { error: "starts_at and ends_at are required" },
-        { status: 400 },
-      );
-    }
-
-    if (new Date(startsAt) >= new Date(endsAt)) {
+    if (startsAt && endsAt && new Date(startsAt) >= new Date(endsAt)) {
       return NextResponse.json(
         { error: "starts_at must be before ends_at" },
         { status: 400 },

@@ -257,19 +257,36 @@ function parseList(value: string) {
     .filter(Boolean);
 }
 
+function slugify(text: string) {
+  return text
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+// Devpost's "Opt-In Prizes" column is a comma-separated list of
+// "<Sponsor>: <Prize Name>" entries. MLH-sponsored prizes are the ones whose
+// sponsor prefix is "MLH" (e.g. "MLH: Best Use of Gemini API"), as opposed to
+// other sponsors at the hackathon (e.g. "Deloitte: Green AI"). We only
+// standardize the MLH ones, since prize review is scoped to MLH prize tracks.
 function matchPrizeCategories(
   optInPrizes: string,
   categories: PrizeCategory[],
 ) {
   if (!optInPrizes.trim()) return [];
-  const haystack = optInPrizes.toLowerCase();
   const matched = new Set<string>();
 
-  categories.forEach((category) => {
-    const nameMatch = haystack.includes(category.name.toLowerCase());
-    if (nameMatch) {
-      matched.add(category.slug);
-    }
+  optInPrizes.split(",").forEach((entry) => {
+    const trimmed = entry.trim();
+    if (!trimmed || !trimmed.toLowerCase().includes("mlh")) return;
+
+    const name = trimmed.replace(/^mlh\s*[:-]\s*/i, "").trim() || trimmed;
+    const catalogMatch = categories.find(
+      (category) => category.name.toLowerCase() === name.toLowerCase(),
+    );
+
+    matched.add(catalogMatch ? catalogMatch.slug : slugify(name));
   });
 
   return Array.from(matched);

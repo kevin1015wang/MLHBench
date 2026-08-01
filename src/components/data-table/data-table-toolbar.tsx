@@ -49,8 +49,8 @@ interface DataTableToolbarProps<TData> {
   onStatusChange?: (status: string[] | null) => void;
   complexity?: string[];
   onComplexityChange?: (complexity: string[] | null) => void;
-  prizeTrack?: string | null;
-  onPrizeTrackChange?: (prizeTrack: string | null) => void;
+  prizeTracks?: string[];
+  onPrizeTracksChange?: (prizeTracks: string[] | null) => void;
   prizeCategories?: Array<{
     slug: string;
     name: string;
@@ -94,8 +94,8 @@ export function DataTableToolbar<TData>({
   onStatusChange,
   complexity = [],
   onComplexityChange,
-  prizeTrack,
-  onPrizeTrackChange,
+  prizeTracks = [],
+  onPrizeTracksChange,
   prizeCategories = [],
   techStack = [],
   onTechStackChange,
@@ -118,19 +118,20 @@ export function DataTableToolbar<TData>({
     table.getState().columnFilters.length > 0 ||
     status.length > 0 ||
     complexity.length > 0 ||
-    prizeTrack !== null ||
+    prizeTracks.length > 0 ||
     techStack.length > 0 ||
     hasGithub === true ||
     // showMlhPrizesOnly === true ||  // Do not show reset button when showMlhPrizesOnly is true
     false;
   const [globalFilter, setGlobalFilter] = React.useState("");
   const [techStackSearch, setTechStackSearch] = React.useState("");
+  const [prizeTrackSearch, setPrizeTrackSearch] = React.useState("");
 
   const filterCount =
     table.getState().columnFilters.length +
     (status.length > 0 ? 1 : 0) +
     (complexity.length > 0 ? 1 : 0) +
-    (prizeTrack !== null ? 1 : 0) +
+    (prizeTracks.length > 0 ? 1 : 0) +
     (techStack.length > 0 ? 1 : 0) +
     (hasGithub === true ? 1 : 0) +
     (showMlhPrizesOnly ? 1 : 0);
@@ -146,9 +147,10 @@ export function DataTableToolbar<TData>({
     table.resetColumnFilters();
     setGlobalFilter("");
     setTechStackSearch("");
+    setPrizeTrackSearch("");
     onStatusChange?.(null);
     onComplexityChange?.(null);
-    onPrizeTrackChange?.(null);
+    onPrizeTracksChange?.(null);
     onTechStackChange?.(null);
     onHasGithubChange?.(false);
     onShowMlhPrizesOnlyChange?.(true);
@@ -164,6 +166,17 @@ export function DataTableToolbar<TData>({
       tech.toLowerCase().includes(searchLower),
     );
   }, [uniqueTechStack, techStackSearch]);
+
+  // Filter prize category list based on search
+  const filteredPrizeCategories = React.useMemo(() => {
+    if (!prizeTrackSearch.trim()) {
+      return prizeCategories;
+    }
+    const searchLower = prizeTrackSearch.toLowerCase();
+    return prizeCategories.filter((cat) =>
+      (cat.short_name || cat.name).toLowerCase().includes(searchLower),
+    );
+  }, [prizeCategories, prizeTrackSearch]);
 
   // Helper to get prize tracks safely from a project-like object
   const getProjectPrizeTracks = React.useCallback(
@@ -230,7 +243,8 @@ export function DataTableToolbar<TData>({
         const matchesPrizeTrack =
           filterType === "prizeTrack"
             ? projectPrizeTracks.includes(filterValue)
-            : !prizeTrack || projectPrizeTracks.includes(prizeTrack);
+            : prizeTracks.length === 0 ||
+              projectPrizeTracks.some((track) => prizeTracks.includes(track));
 
         // For tech stack: exclude current tech stack filter, but include if it matches the value being counted
         const projectTechStack = project.tech_stack ?? [];
@@ -286,7 +300,7 @@ export function DataTableToolbar<TData>({
       title,
       status,
       complexity,
-      prizeTrack,
+      prizeTracks,
       techStack,
       techStackMode,
       hasGithub,
@@ -352,38 +366,78 @@ export function DataTableToolbar<TData>({
             <DropdownMenuLabel className="text-xs font-normal">
               MLH Prize Track
             </DropdownMenuLabel>
-            <div className="px-2 py-1.5">
-              <Select
-                value={prizeTrack || "all"}
-                onValueChange={(value) => {
-                  if (onPrizeTrackChange) {
-                    onPrizeTrackChange(value === "all" ? null : value);
-                  }
-                }}
-              >
-                <SelectTrigger className="h-8 w-full">
-                  <SelectValue placeholder="All Prize Tracks" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Prize Tracks</SelectItem>
-                  {prizeCategories.map((cat) => {
-                    const count = getFilterCounts("prizeTrack", cat.slug);
-                    return (
-                      <SelectItem key={cat.slug} value={cat.slug}>
-                        <span className="flex items-center justify-between w-full">
-                          <span>{cat.short_name || cat.name}</span>
-                          <Badge
-                            variant="secondary"
-                            className="ml-2 h-4 min-w-4 px-1 text-[10px] font-normal"
-                          >
-                            {count}
-                          </Badge>
-                        </span>
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
+            <div className="px-2 py-1.5 space-y-2">
+              {prizeCategories.length > 5 && (
+                <div className="relative">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+                  <Input
+                    placeholder="Search prize tracks..."
+                    value={prizeTrackSearch}
+                    onChange={(e) => setPrizeTrackSearch(e.target.value)}
+                    className="h-8 pl-7 text-xs"
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  />
+                </div>
+              )}
+              <div className="max-h-[200px] overflow-y-auto space-y-1">
+                {filteredPrizeCategories.map((cat) => {
+                  const count = getFilterCounts("prizeTrack", cat.slug);
+                  const label = cat.short_name || cat.name;
+                  return (
+                    <div
+                      key={cat.slug}
+                      className="flex items-center space-x-2 px-2"
+                    >
+                      <Checkbox
+                        id={`prize-track-${cat.slug}`}
+                        checked={prizeTracks.includes(cat.slug)}
+                        onCheckedChange={(checked) => {
+                          if (onPrizeTracksChange) {
+                            if (checked) {
+                              onPrizeTracksChange([...prizeTracks, cat.slug]);
+                            } else {
+                              const newVal = prizeTracks.filter(
+                                (t) => t !== cat.slug,
+                              );
+                              onPrizeTracksChange(
+                                newVal.length > 0 ? newVal : null,
+                              );
+                            }
+                          }
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <button
+                        type="button"
+                        className="text-sm cursor-pointer flex-1 flex items-center justify-between text-left bg-transparent border-none p-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const checkbox = document.getElementById(
+                            `prize-track-${cat.slug}`,
+                          ) as HTMLInputElement;
+                          if (checkbox) {
+                            checkbox.click();
+                          }
+                        }}
+                      >
+                        <span>{label}</span>
+                        <Badge
+                          variant="secondary"
+                          className="ml-2 h-4 min-w-4 px-1 text-[10px] font-normal"
+                        >
+                          {count}
+                        </Badge>
+                      </button>
+                    </div>
+                  );
+                })}
+                {filteredPrizeCategories.length === 0 && (
+                  <div className="px-2 py-2 text-xs text-muted-foreground text-center">
+                    No prize tracks found
+                  </div>
+                )}
+              </div>
             </div>
 
             <DropdownMenuSeparator />

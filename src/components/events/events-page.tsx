@@ -1,12 +1,18 @@
 "use client";
 
-import { Calendar, Folder, ImageOff, MapPin, Search } from "lucide-react";
+import {
+  Calendar,
+  Folder,
+  ImageOff,
+  MapPin,
+  Search,
+  Trash2,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ButtonGroup } from "@/components/ui/button-group";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
@@ -16,12 +22,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
-import { useSession } from "@/hooks/use-session";
-import { useStore } from "@/lib/store";
+import { type Event, useStore } from "@/lib/store";
+import { DeleteEventDialog } from "./delete-event-dialog";
 import { NewEventDialog } from "./new-event-dialog";
 
 type EventStatus = {
-  type: "upcoming" | "active" | "ended";
+  type: "upcoming" | "active" | "ended" | "unknown";
   label: string;
   daysUntil?: number;
 };
@@ -34,7 +40,7 @@ function getEventStatus(
   now.setHours(0, 0, 0, 0);
 
   if (!startsAt || !endsAt) {
-    return { type: "ended", label: "Ended" };
+    return { type: "unknown", label: "" };
   }
 
   const start = new Date(startsAt);
@@ -99,39 +105,24 @@ function EventImage({
 }
 
 export function EventsPage() {
-  const { events, projects } = useStore();
-  const { user } = useSession();
+  const { events, projects, setEvents, setProjects } = useStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
-  const [showAllEvents, setShowAllEvents] = useState(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("showAllEvents");
-      return stored === "true";
-    }
-    return false;
-  });
+  const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
 
   // Fetch events and related dashboard data
   useDashboardData(null);
 
-  // Persist toggle state to localStorage
-  const handleToggle = (value: boolean) => {
-    setShowAllEvents(value);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("showAllEvents", String(value));
-    }
+  const getProjectCount = (eventId: string) => {
+    return projects.filter((p) => p.event_id === eventId).length;
   };
 
-  const normalizedUserEmail = user?.email?.trim().toLowerCase() ?? "";
+  const handleEventDeleted = (eventId: string) => {
+    setEvents(events.filter((e) => e.id !== eventId));
+    setProjects(projects.filter((p) => p.event_id !== eventId));
+  };
 
-  const filteredEvents = events.filter((event) => {
-    if (showAllEvents || !normalizedUserEmail) return true;
-    const staffEmails = event.event_staff_emails;
-    if (!staffEmails) return false;
-    return staffEmails.toLowerCase().includes(normalizedUserEmail);
-  });
-
-  const eventsWithStatus = filteredEvents
+  const eventsWithStatus = events
     .filter((event) => {
       const query = searchQuery.trim().toLowerCase();
       if (!query) return true;
@@ -164,10 +155,6 @@ export function EventsPage() {
       compareByStartDateAsc(a.event.starts_at, b.event.starts_at),
     );
 
-  const getProjectCount = (eventId: string) => {
-    return projects.filter((p) => p.event_id === eventId).length;
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
@@ -181,24 +168,6 @@ export function EventsPage() {
         </div>
 
         <div className="shrink-0 flex gap-2">
-          <ButtonGroup>
-            <Button
-              variant="outline"
-              onClick={() => handleToggle(false)}
-              data-active={!showAllEvents}
-              className="data-[active=true]:bg-primary data-[active=true]:text-primary-foreground"
-            >
-              My Events
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => handleToggle(true)}
-              data-active={showAllEvents}
-              className="data-[active=true]:bg-primary data-[active=true]:text-primary-foreground"
-            >
-              All
-            </Button>
-          </ButtonGroup>
           <Button onClick={() => setIsNewEventDialogOpen(true)}>
             New Event
           </Button>
@@ -208,6 +177,15 @@ export function EventsPage() {
       <NewEventDialog
         open={isNewEventDialogOpen}
         onOpenChange={setIsNewEventDialogOpen}
+      />
+
+      <DeleteEventDialog
+        event={eventToDelete}
+        projectCount={eventToDelete ? getProjectCount(eventToDelete.id) : 0}
+        onOpenChange={(open) => {
+          if (!open) setEventToDelete(null);
+        }}
+        onDeleted={handleEventDeleted}
       />
 
       <div className="flex gap-4">
@@ -254,57 +232,74 @@ export function EventsPage() {
                           {event.name}
                         </CardTitle>
                       </div>
-                      {(() => {
-                        const badgeVariant =
-                          status.type === "active" || status.type === "upcoming"
-                            ? "default"
-                            : "secondary";
-                        let badgeClassName = "shrink-0";
-                        if (status.type === "active") {
-                          badgeClassName = "bg-green-500 text-white shrink-0";
-                        } else if (status.type === "upcoming") {
-                          badgeClassName =
-                            "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-100 shrink-0";
-                        }
-                        return (
-                          <Badge
-                            variant={badgeVariant}
-                            className={badgeClassName}
-                          >
-                            {status.label}
-                          </Badge>
-                        );
-                      })()}
+                      <div className="flex items-center gap-1 shrink-0">
+                        {status.label &&
+                          (() => {
+                            const badgeVariant =
+                              status.type === "active" ||
+                              status.type === "upcoming"
+                                ? "default"
+                                : "secondary";
+                            let badgeClassName = "shrink-0";
+                            if (status.type === "active") {
+                              badgeClassName =
+                                "bg-green-500 text-white shrink-0";
+                            } else if (status.type === "upcoming") {
+                              badgeClassName =
+                                "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-100 shrink-0";
+                            }
+                            return (
+                              <Badge
+                                variant={badgeVariant}
+                                className={badgeClassName}
+                              >
+                                {status.label}
+                              </Badge>
+                            );
+                          })()}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-gray-400 hover:text-destructive hover:bg-destructive/10"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setEventToDelete(event);
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Calendar className="w-4 h-4 shrink-0" />
-                      <span className="min-w-0 flex-1 truncate">
-                        {event.starts_at && event.ends_at
-                          ? (() => {
-                              const start = new Date(event.starts_at);
-                              const end = new Date(event.ends_at);
-                              const startMonth = start.toLocaleDateString(
-                                "en-US",
-                                {
-                                  month: "short",
-                                },
-                              );
-                              const endMonth = end.toLocaleDateString("en-US", {
+                    {event.starts_at && event.ends_at && (
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <Calendar className="w-4 h-4 shrink-0" />
+                        <span className="min-w-0 flex-1 truncate">
+                          {(() => {
+                            const start = new Date(event.starts_at);
+                            const end = new Date(event.ends_at);
+                            const startMonth = start.toLocaleDateString(
+                              "en-US",
+                              {
                                 month: "short",
-                              });
-                              const startDay = start.getDate();
-                              const endDay = end.getDate();
-                              const year = start.getFullYear();
+                              },
+                            );
+                            const endMonth = end.toLocaleDateString("en-US", {
+                              month: "short",
+                            });
+                            const startDay = start.getDate();
+                            const endDay = end.getDate();
+                            const year = start.getFullYear();
 
-                              if (startMonth === endMonth) {
-                                return `${startMonth} ${startDay} - ${endDay}, ${year}`;
-                              }
-                              return `${startMonth} ${startDay} - ${endMonth} ${endDay}, ${year}`;
-                            })()
-                          : ""}
-                      </span>
-                    </div>
+                            if (startMonth === endMonth) {
+                              return `${startMonth} ${startDay} - ${endDay}, ${year}`;
+                            }
+                            return `${startMonth} ${startDay} - ${endMonth} ${endDay}, ${year}`;
+                          })()}
+                        </span>
+                      </div>
+                    )}
 
                     <div className="flex items-center justify-between gap-3 text-sm text-gray-600">
                       {event.city || event.state || event.country ? (
@@ -393,9 +388,23 @@ export function EventsPage() {
                               {event.name}
                             </CardTitle>
                           </div>
-                          <Badge variant="secondary" className="shrink-0">
-                            {status.label}
-                          </Badge>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <Badge variant="secondary" className="shrink-0">
+                              {status.label}
+                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-gray-400 hover:text-destructive hover:bg-destructive/10"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setEventToDelete(event);
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
                         </div>
 
                         <div className="flex items-center gap-2 text-sm text-gray-600">

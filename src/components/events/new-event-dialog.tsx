@@ -53,16 +53,12 @@ export function NewEventDialog({ open, onOpenChange }: NewEventDialogProps) {
 
   const [files, setFiles] = useState<File[]>([]);
   const [name, setName] = useState("");
-  const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const reset = useCallback(() => {
     setFiles([]);
     setName("");
-    setStartTime("");
-    setEndTime("");
     setError(null);
   }, []);
 
@@ -84,8 +80,7 @@ export function NewEventDialog({ open, onOpenChange }: NewEventDialogProps) {
     }
   };
 
-  const canSubmit =
-    files.length > 0 && name.trim() && startTime && endTime && !isSubmitting;
+  const canSubmit = files.length > 0 && name.trim() && !isSubmitting;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -97,11 +92,7 @@ export function NewEventDialog({ open, onOpenChange }: NewEventDialogProps) {
       const eventResponse = await fetch("/api/events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name.trim(),
-          starts_at: new Date(startTime).toISOString(),
-          ends_at: new Date(endTime).toISOString(),
-        }),
+        body: JSON.stringify({ name: name.trim() }),
       });
 
       if (!eventResponse.ok) {
@@ -211,28 +202,6 @@ export function NewEventDialog({ open, onOpenChange }: NewEventDialogProps) {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Hack the Valley Hack Day"
-              disabled={isSubmitting}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="new-event-start">Hackathon Start</Label>
-            <Input
-              id="new-event-start"
-              type="datetime-local"
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-              disabled={isSubmitting}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="new-event-end">Hackathon End</Label>
-            <Input
-              id="new-event-end"
-              type="datetime-local"
-              value={endTime}
-              onChange={(e) => setEndTime(e.target.value)}
               disabled={isSubmitting}
             />
           </div>

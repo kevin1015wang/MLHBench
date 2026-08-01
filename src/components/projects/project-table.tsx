@@ -46,6 +46,7 @@ import {
   saveFilterState,
 } from "@/lib/filter-persistence";
 import {
+  deslugify,
   getPrizeStatusDisplay,
   getPrizeTracks,
   getStatusLabel,
@@ -326,9 +327,9 @@ export function ProjectTable({
     "complexity",
     parseAsArrayOf(parseAsString),
   );
-  const [prizeTrack, setPrizeTrack] = useQueryState(
-    "prizeTrack",
-    parseAsString,
+  const [prizeTracks, setPrizeTracks] = useQueryState(
+    "prizeTracks",
+    parseAsArrayOf(parseAsString),
   );
   const [techStack, setTechStack] = useQueryState(
     "techStack",
@@ -426,11 +427,11 @@ export function ProjectTable({
       title ||
       (status && status.length > 0) ||
       (complexity && complexity.length > 0) ||
-      prizeTrack ||
+      (prizeTracks && prizeTracks.length > 0) ||
       (techStack && techStack.length > 0) ||
       hasGithub === true
     );
-  }, [title, status, complexity, prizeTrack, techStack, hasGithub]);
+  }, [title, status, complexity, prizeTracks, techStack, hasGithub]);
 
   // Track the last eventId we restored for and if we're currently restoring
   const lastRestoredEventIdRef = React.useRef<string | null | undefined>(null);
@@ -459,8 +460,8 @@ export function ProjectTable({
       if (persistedState.complexity && persistedState.complexity.length > 0) {
         setComplexity(persistedState.complexity);
       }
-      if (persistedState.prizeTrack) {
-        setPrizeTrack(persistedState.prizeTrack);
+      if (persistedState.prizeTracks && persistedState.prizeTracks.length > 0) {
+        setPrizeTracks(persistedState.prizeTracks);
       }
       if (persistedState.techStack && persistedState.techStack.length > 0) {
         setTechStack(persistedState.techStack);
@@ -513,13 +514,40 @@ export function ProjectTable({
     setTitle,
     setStatus,
     setComplexity,
-    setPrizeTrack,
+    setPrizeTracks,
     setTechStack,
     setTechStackMode,
     setHasGithub,
   ]);
   const { prizeCategoryMap, prizeCategoryNameMap, prizeCategories } =
     usePrizeCategories();
+
+  // Prize categories available to filter by: the catalog (if seeded) unioned
+  // with any standardized prize slugs actually found on imported projects,
+  // since a slug can exist on a project before a matching catalog row does.
+  const availablePrizeCategories = React.useMemo(() => {
+    const bySlug = new Map<
+      string,
+      { slug: string; name: string; short_name: string | null }
+    >();
+
+    prizeCategories.forEach((cat) => {
+      bySlug.set(cat.slug, cat);
+    });
+
+    projects.forEach((project) => {
+      getPrizeTracks(project).forEach((slug) => {
+        if (!bySlug.has(slug)) {
+          const label = deslugify(slug);
+          bySlug.set(slug, { slug, name: label, short_name: label });
+        }
+      });
+    });
+
+    return Array.from(bySlug.values()).sort((a, b) =>
+      (a.short_name || a.name).localeCompare(b.short_name || b.name),
+    );
+  }, [prizeCategories, projects]);
 
   // Get unique tech stack values from all projects
   // Deduplicate case-insensitively, preferring capitalized versions
@@ -583,9 +611,11 @@ export function ProjectTable({
         (project.technical_complexity &&
           complexity.includes(project.technical_complexity));
 
-      // Prize track filter (single selection)
+      // Prize track filter (any of the selected categories)
       const matchesPrizeTrack =
-        !prizeTrack || getPrizeTracks(project).includes(prizeTrack);
+        !prizeTracks ||
+        prizeTracks.length === 0 ||
+        getPrizeTracks(project).some((track) => prizeTracks.includes(track));
 
       // Tech stack filter (intersection or union, case-insensitive)
       const matchesTechStack =
@@ -631,7 +661,7 @@ export function ProjectTable({
     title,
     status,
     complexity,
-    prizeTrack,
+    prizeTracks,
     techStack,
     techStackMode,
     hasGithub,
@@ -647,7 +677,7 @@ export function ProjectTable({
 
   const columns = React.useMemo<ColumnDef<Project>[]>(() => {
     const getPrizeDisplayName = (slug: string) => {
-      return prizeCategoryMap.get(slug) || slug;
+      return prizeCategoryMap.get(slug) || deslugify(slug);
     };
 
     const cols: ColumnDef<Project>[] = [
@@ -1070,15 +1100,12 @@ export function ProjectTable({
             <div className="flex flex-wrap gap-1 max-w-50">
               {prizeTracks.length > 0 ? (
                 prizeTracks
-                  .filter(
-                    (trackSlug) =>
-                      !showMlhPrizesOnly || prizeCategoryMap.has(trackSlug),
-                  )
                   .map((trackSlug) => {
                     const result = results[trackSlug];
                     const shortDisplayName = getPrizeDisplayName(trackSlug); // short_name or name fallback
                     const fullName =
-                      prizeCategoryNameMap.get(trackSlug) || trackSlug; // full name for tooltip
+                      prizeCategoryNameMap.get(trackSlug) ||
+                      deslugify(trackSlug); // full name for tooltip
                     const { status, message } = getPrizeStatusDisplay(result);
 
                     return {
@@ -1175,7 +1202,6 @@ export function ProjectTable({
     prizeCategoryMap,
     prizeCategoryNameMap,
     duplicateNameInfoById.get,
-    showMlhPrizesOnly,
   ]);
 
   // Merge persisted column visibility with default visibility
@@ -1298,7 +1324,8 @@ export function ProjectTable({
       title: title || undefined,
       status: status && status.length > 0 ? status : undefined,
       complexity: complexity && complexity.length > 0 ? complexity : undefined,
-      prizeTrack: prizeTrack || undefined,
+      prizeTracks:
+        prizeTracks && prizeTracks.length > 0 ? prizeTracks : undefined,
       techStack: techStack && techStack.length > 0 ? techStack : undefined,
       techStackMode,
       hasGithub: hasGithub ?? undefined,
@@ -1314,7 +1341,7 @@ export function ProjectTable({
     title,
     status,
     complexity,
-    prizeTrack,
+    prizeTracks,
     techStack,
     techStackMode,
     hasGithub,
@@ -1404,9 +1431,9 @@ export function ProjectTable({
             onStatusChange={setStatus}
             complexity={complexity ?? []}
             onComplexityChange={setComplexity}
-            prizeTrack={prizeTrack ?? null}
-            onPrizeTrackChange={(value) => setPrizeTrack(value)}
-            prizeCategories={prizeCategories}
+            prizeTracks={prizeTracks ?? []}
+            onPrizeTracksChange={(value) => setPrizeTracks(value)}
+            prizeCategories={availablePrizeCategories}
             techStack={techStack ?? []}
             onTechStackChange={setTechStack}
             techStackMode={techStackMode}
