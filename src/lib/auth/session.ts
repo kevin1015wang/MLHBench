@@ -17,13 +17,13 @@ export interface SessionData {
 }
 
 const SESSION_COOKIE = "bench_session";
-const STATE_COOKIE = "mlh_oauth_state";
+const STATE_COOKIE = "google_oauth_state";
 const SESSION_TTL_MS = 1000 * 60 * 60 * 24; // 24 hours
 
 const getSecret = () => {
-  const secret = process.env.MY_MLH_CLIENT_SECRET;
+  const secret = process.env.AUTH_SECRET;
   if (!secret) {
-    throw new Error("MY_MLH_CLIENT_SECRET is required for session signing");
+    throw new Error("AUTH_SECRET is required for session signing");
   }
   return secret;
 };

@@ -4,7 +4,6 @@ import { Calendar, Folder, ImageOff, MapPin, Search } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
-import { ImportEventsButton } from "@/components/events/import-events-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
@@ -198,7 +197,6 @@ export function EventsPage() {
               All
             </Button>
           </ButtonGroup>
-          <ImportEventsButton />
         </div>
       </div>
 

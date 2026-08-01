@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import {
@@ -7,7 +6,6 @@ import {
   setSession,
   toSessionData,
 } from "@/lib/auth/session";
-import { syncMlhEventsToDb } from "@/lib/mlh-core/sync-events";
 
 const buildErrorRedirect = (req: NextRequest, code: string) => {
   const url = new URL("/login", req.url);
@@ -16,12 +14,12 @@ const buildErrorRedirect = (req: NextRequest, code: string) => {
 };
 
 export async function GET(req: NextRequest) {
-  const clientId = process.env.MY_MLH_CLIENT_ID;
-  const clientSecret = process.env.MY_MLH_CLIENT_SECRET;
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
   if (!clientId || !clientSecret) {
     return NextResponse.json(
-      { error: "MY_MLH_CLIENT_ID and MY_MLH_CLIENT_SECRET are required" },
+      { error: "GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are required" },
       { status: 500 },
     );
   }
@@ -36,7 +34,7 @@ export async function GET(req: NextRequest) {
   if (!(await consumeState(state)))
     return buildErrorRedirect(req, "state_mismatch");
 
-  const tokenResponse = await fetch("https://my.mlh.io/oauth/token", {
+  const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
@@ -60,27 +58,42 @@ export async function GET(req: NextRequest) {
   if (!tokenJson.access_token)
     return buildErrorRedirect(req, "no_access_token");
 
-  const profileResponse = await fetch("https://api.mlh.com/v4/users/me", {
-    headers: { Authorization: `Bearer ${tokenJson.access_token}` },
-  });
+  const profileResponse = await fetch(
+    "https://openidconnect.googleapis.com/v1/userinfo",
+    {
+      headers: { Authorization: `Bearer ${tokenJson.access_token}` },
+    },
+  );
 
   if (!profileResponse.ok)
     return buildErrorRedirect(req, "profile_fetch_failed");
 
   const profile = (await profileResponse.json()) as {
-    id: string;
-    first_name?: string;
-    last_name?: string;
+    sub: string;
     email?: string;
-    avatar?: { url?: string };
-    profile_picture?: string | null;
+    email_verified?: boolean;
+    given_name?: string;
+    family_name?: string;
+    name?: string;
+    picture?: string;
   };
 
-  const gravatarUrl =
-    profile.email &&
-    `https://www.gravatar.com/avatar/${createHash("md5")
-      .update(profile.email.trim().toLowerCase())
-      .digest("hex")}?d=identicon`;
+  const allowedEmail =
+    process.env.ALLOWED_LOGIN_EMAIL?.trim().toLowerCase() ||
+    "kevin1015wang@gmail.com";
+  const normalizedEmail = profile.email?.trim().toLowerCase();
+
+  if (!normalizedEmail || normalizedEmail !== allowedEmail) {
+    return buildErrorRedirect(req, "unauthorized_email");
+  }
+
+  if (profile.email_verified === false) {
+    return buildErrorRedirect(req, "email_not_verified");
+  }
+
+  const [fallbackFirstName, ...fallbackLastNameParts] = (profile.name || "")
+    .split(" ")
+    .filter(Boolean);
 
   await setSession(
     toSessionData({
@@ -88,23 +101,14 @@ export async function GET(req: NextRequest) {
       refresh_token: tokenJson.refresh_token,
       expires_in: tokenJson.expires_in ?? 3600,
       user: {
-        id: profile.id,
-        firstName: profile.first_name || "NoName",
-        lastName: profile.last_name || "NoName",
+        id: profile.sub,
+        firstName: profile.given_name || fallbackFirstName || "User",
+        lastName: profile.family_name || fallbackLastNameParts.join(" ") || "",
         email: profile.email,
-        avatarUrl:
-          profile.avatar?.url || profile.profile_picture || gravatarUrl || null,
+        avatarUrl: profile.picture || null,
       },
     }),
   );
-
-  // Trigger event sync in the background (fire and forget)
-  syncMlhEventsToDb({
-    daysFromNow: 35,
-    imagesOnly: true,
-  }).catch((error) => {
-    console.error("[auth/callback] Failed to sync events:", error);
-  });
 
   const redirectUrl = new URL("/events", req.url);
   return NextResponse.redirect(redirectUrl);

@@ -25,20 +25,25 @@ export default async function LoginPage(props: LoginPageProps) {
 
   const error = searchParams?.error;
 
-  const errorMessage =
-    error === "missing_code"
-      ? "We didn't receive a code back from MyMLH. Try signing in again."
-      : error === "state_mismatch"
-        ? "Login failed: security check didn't match. Please retry."
-        : error === "token_exchange_failed"
-          ? "Unable to exchange the code for a token."
-          : error === "profile_fetch_failed"
-            ? "Could not load your MyMLH profile."
-            : error === "no_access_token"
-              ? "No access token returned from MyMLH."
-              : error
-                ? "We couldn't complete login. Please try again."
-                : undefined;
+  let errorMessage: string | undefined;
+  if (error === "missing_code") {
+    errorMessage =
+      "We didn't receive a code back from Google. Try signing in again.";
+  } else if (error === "state_mismatch") {
+    errorMessage = "Login failed: security check didn't match. Please retry.";
+  } else if (error === "token_exchange_failed") {
+    errorMessage = "Unable to exchange the code for a token.";
+  } else if (error === "profile_fetch_failed") {
+    errorMessage = "Could not load your Google profile.";
+  } else if (error === "no_access_token") {
+    errorMessage = "No access token returned from Google.";
+  } else if (error === "unauthorized_email") {
+    errorMessage = "This account is not allowed to access Bench.";
+  } else if (error === "email_not_verified") {
+    errorMessage = "Your Google email address must be verified.";
+  } else if (error) {
+    errorMessage = "We couldn't complete login. Please try again.";
+  }
 
   const playfulBench = Math.random() < 0.2;
   const brandName = playfulBench ? "Benches" : "Bench";
@@ -94,9 +99,9 @@ export default async function LoginPage(props: LoginPageProps) {
               >
                 <Button
                   type="submit"
-                  className="h-11 w-full max-w-xs bg-(--mlh-blue) text-base font-semibold text-white transition hover:bg-(--mlh-blue)/85"
+                  className="h-11 w-full max-w-xs bg-[#1a73e8] text-base font-semibold text-white transition hover:bg-[#1a73e8]/90"
                 >
-                  Continue with MyMLH
+                  Continue with Google
                 </Button>
               </form>
 
