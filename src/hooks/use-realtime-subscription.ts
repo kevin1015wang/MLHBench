@@ -49,7 +49,16 @@ export function useRealtimeSubscription() {
               if (!oldEvents) return oldEvents;
               const { eventType, new: newRecord, old: oldRecord } = payload;
 
-              if (eventType === "INSERT") return [newRecord, ...oldEvents];
+              if (eventType === "INSERT") {
+                // Guard against duplicate delivery (e.g. an optimistic local
+                // insert racing the realtime echo of that same row).
+                if (oldEvents.some((e) => e.id === newRecord.id)) {
+                  return oldEvents.map((e) =>
+                    e.id === newRecord.id ? newRecord : e,
+                  );
+                }
+                return [newRecord, ...oldEvents];
+              }
               if (eventType === "UPDATE")
                 return oldEvents.map((e) =>
                   e.id === newRecord.id ? newRecord : e,
@@ -89,8 +98,18 @@ export function useRealtimeSubscription() {
 
               queryClient.setQueryData(queryKey, (current: Project[]) => {
                 if (!current) return current;
-                if (eventType === "INSERT")
+                if (eventType === "INSERT") {
+                  // Guard against duplicate delivery (e.g. an optimistic
+                  // local insert racing the realtime echo of that same row).
+                  if (current.some((p) => p.id === projectId)) {
+                    return current.map((p) =>
+                      p.id === projectId
+                        ? ({ ...p, ...newRecord } as Project)
+                        : p,
+                    );
+                  }
                   return [newRecord as Project, ...current];
+                }
                 if (eventType === "UPDATE")
                   return current.map((p) =>
                     p.id === projectId
@@ -115,7 +134,16 @@ export function useRealtimeSubscription() {
                 if (!oldCats) return oldCats;
                 const { eventType, new: newRecord, old: oldRecord } = payload;
 
-                if (eventType === "INSERT") return [...oldCats, newRecord];
+                if (eventType === "INSERT") {
+                  // Guard against duplicate delivery (e.g. an optimistic
+                  // local insert racing the realtime echo of that same row).
+                  if (oldCats.some((c) => c.id === newRecord.id)) {
+                    return oldCats.map((c) =>
+                      c.id === newRecord.id ? newRecord : c,
+                    );
+                  }
+                  return [...oldCats, newRecord];
+                }
                 if (eventType === "UPDATE")
                   return oldCats.map((c) =>
                     c.id === newRecord.id ? newRecord : c,

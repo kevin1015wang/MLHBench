@@ -142,3 +142,12 @@ alter table prize_categories enable row level security;
 create policy "anon full access" on events for all to anon using (true) with check (true);
 create policy "anon full access" on projects for all to anon using (true) with check (true);
 create policy "anon full access" on prize_categories for all to anon using (true) with check (true);
+
+-- The app's live "Processing Projects" view relies on Supabase Realtime
+-- (useRealtimeSubscription) pushing postgres_changes events for status/result
+-- updates. Tables aren't broadcast by default, so they must be added to the
+-- realtime publication explicitly, or the UI will appear stuck on "Queued
+-- for processing" even while the server-side review pipeline runs fine.
+alter publication supabase_realtime add table events;
+alter publication supabase_realtime add table projects;
+alter publication supabase_realtime add table prize_categories;

@@ -352,11 +352,14 @@ export const codeReviewAgent: ReviewAgent<
     return { ok: true, data };
   } catch (error) {
     console.error("Code review agent failed", error);
+    const message = `Code review agent encountered an error: ${
+      error instanceof Error ? error.message : String(error)
+    }`;
     await setProjectStatus(
       context.supabase,
       context.project.id,
       "errored",
-      "Code review agent encountered an error.",
+      message,
     );
     return { ok: false };
   }
