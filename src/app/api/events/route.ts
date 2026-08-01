@@ -36,3 +36,96 @@ export async function GET(_req: Request) {
     );
   }
 }
+
+function slugify(name: string) {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+export async function POST(request: Request) {
+  try {
+    const session = await getSession();
+
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json().catch(() => null);
+    const name = typeof body?.name === "string" ? body.name.trim() : "";
+    const startsAt = body?.starts_at;
+    const endsAt = body?.ends_at;
+
+    if (!name) {
+      return NextResponse.json({ error: "name is required" }, { status: 400 });
+    }
+
+    if (typeof startsAt !== "string" || typeof endsAt !== "string") {
+      return NextResponse.json(
+        { error: "starts_at and ends_at are required" },
+        { status: 400 },
+      );
+    }
+
+    if (new Date(startsAt) >= new Date(endsAt)) {
+      return NextResponse.json(
+        { error: "starts_at must be before ends_at" },
+        { status: 400 },
+      );
+    }
+
+    const supabase = await createClient();
+
+    const baseSlug = slugify(name) || "event";
+    const { data: existingSlugs, error: slugError } = await supabase
+      .from("events")
+      .select("slug")
+      .like("slug", `${baseSlug}%`);
+
+    if (slugError) {
+      console.error("Error checking existing slugs:", slugError);
+      return NextResponse.json(
+        { error: "Failed to create event" },
+        { status: 500 },
+      );
+    }
+
+    const takenSlugs = new Set((existingSlugs ?? []).map((row) => row.slug));
+    let slug = baseSlug;
+    let suffix = 2;
+    while (takenSlugs.has(slug)) {
+      slug = `${baseSlug}-${suffix}`;
+      suffix += 1;
+    }
+
+    const { data: event, error } = await supabase
+      .from("events")
+      .insert({
+        name,
+        slug,
+        status: "active",
+        starts_at: startsAt,
+        ends_at: endsAt,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error creating event:", error);
+      return NextResponse.json(
+        { error: "Failed to create event" },
+        { status: 500 },
+      );
+    }
+
+    return NextResponse.json({ event }, { status: 201 });
+  } catch (error) {
+    console.error("Unexpected error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}

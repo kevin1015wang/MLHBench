@@ -18,6 +18,7 @@ import {
 import { useDashboardData } from "@/hooks/use-dashboard-data";
 import { useSession } from "@/hooks/use-session";
 import { useStore } from "@/lib/store";
+import { NewEventDialog } from "./new-event-dialog";
 
 type EventStatus = {
   type: "upcoming" | "active" | "ended";
@@ -101,6 +102,7 @@ export function EventsPage() {
   const { events, projects } = useStore();
   const { user } = useSession();
   const [searchQuery, setSearchQuery] = useState("");
+  const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
   const [showAllEvents, setShowAllEvents] = useState(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("showAllEvents");
@@ -197,8 +199,16 @@ export function EventsPage() {
               All
             </Button>
           </ButtonGroup>
+          <Button onClick={() => setIsNewEventDialogOpen(true)}>
+            New Event
+          </Button>
         </div>
       </div>
+
+      <NewEventDialog
+        open={isNewEventDialogOpen}
+        onOpenChange={setIsNewEventDialogOpen}
+      />
 
       <div className="flex gap-4">
         <div className="relative max-w-md">
