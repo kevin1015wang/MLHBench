@@ -146,6 +146,7 @@ export type Database = {
           submitter_email: string | null
           submitter_first_name: string | null
           submitter_last_name: string | null
+          table_number: string | null
           team_size: number | null
           tech_stack: string[]
           technical_complexity:
@@ -185,6 +186,7 @@ export type Database = {
           submitter_email?: string | null
           submitter_first_name?: string | null
           submitter_last_name?: string | null
+          table_number?: string | null
           team_size?: number | null
           tech_stack?: string[]
           technical_complexity?:
@@ -224,6 +226,7 @@ export type Database = {
           submitter_email?: string | null
           submitter_first_name?: string | null
           submitter_last_name?: string | null
+          table_number?: string | null
           team_size?: number | null
           tech_stack?: string[]
           technical_complexity?:

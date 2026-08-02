@@ -23,13 +23,18 @@ const codeReviewSchema = z.object({
 function buildUserPrompt({
   description,
   repoContent,
+  judgeNotes,
 }: {
   description: string;
   repoContent: string;
+  judgeNotes: string;
 }) {
   return `
 devpost_description:
 ${description || "(none provided)"}
+
+judge_notes:
+${judgeNotes || "(none)"}
 
 repo_code_pack:
 ${repoContent || "(no code fetched)"}
@@ -319,6 +324,7 @@ export const codeReviewAgent: ReviewAgent<
   const prompt = buildUserPrompt({
     description: context.project.about_the_project ?? "",
     repoContent: context.repoInfo.repoContent,
+    judgeNotes: context.project.judging_notes ?? "",
   });
 
   try {

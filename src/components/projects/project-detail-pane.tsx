@@ -32,6 +32,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Markdown } from "@/components/ui/markdown";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Tooltip,
   TooltipContent,
@@ -51,7 +52,7 @@ import { buildCopilotChatPrompt } from "@/prompts/copilot-chat";
 // Shared debounce timers ref (module-level)
 const debounceTimersRef = new Map<
   string,
-  { timer: NodeJS.Timeout; type: "rating" | "notes" }
+  { timer: NodeJS.Timeout; type: "rating" | "notes" | "table_number" }
 >();
 
 // Component for judging score cell with debounced save
@@ -166,7 +167,7 @@ function NotesInput({ project }: { readonly project: Project }) {
     };
   }, [project.id]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
     setLocalValue(newValue);
 
@@ -200,11 +201,77 @@ function NotesInput({ project }: { readonly project: Project }) {
   };
 
   return (
+    <Textarea
+      value={localValue}
+      onChange={handleChange}
+      className="w-full text-sm min-h-40"
+      placeholder="Notes from the pitch..."
+    />
+  );
+}
+
+// Component for table number input with debounced save
+function TableNumberInput({ project }: { readonly project: Project }) {
+  const { updateProject } = useStore();
+  const [localValue, setLocalValue] = React.useState(
+    project.table_number ?? "",
+  );
+
+  React.useEffect(() => {
+    setLocalValue(project.table_number ?? "");
+  }, [project.table_number]);
+
+  const updateProjectRef = React.useRef(updateProject);
+  React.useEffect(() => {
+    updateProjectRef.current = updateProject;
+  });
+
+  React.useEffect(() => {
+    const timerKey = `${project.id}:detail:table_number`;
+    return () => {
+      const existing = debounceTimersRef.get(timerKey);
+      if (existing?.type === "table_number") {
+        clearTimeout(existing.timer);
+        debounceTimersRef.delete(timerKey);
+      }
+    };
+  }, [project.id]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setLocalValue(newValue);
+
+    const timerKey = `${project.id}:detail:table_number`;
+    const existing = debounceTimersRef.get(timerKey);
+    if (existing?.type === "table_number") {
+      clearTimeout(existing.timer);
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        updateProjectRef.current(project.id, { table_number: newValue });
+
+        const { createClient } = await import("@/lib/supabase/client");
+        const supabase = createClient();
+        await supabase
+          .from("projects")
+          .update({ table_number: newValue })
+          .eq("id", project.id);
+      } catch (error) {
+        console.error("Failed to save table number:", error);
+      }
+      debounceTimersRef.delete(timerKey);
+    }, 2000);
+
+    debounceTimersRef.set(timerKey, { timer, type: "table_number" });
+  };
+
+  return (
     <Input
       value={localValue}
       onChange={handleChange}
-      className="w-full text-sm"
-      placeholder="Judging notes..."
+      className="h-8 w-24 text-sm"
+      placeholder="Table #"
     />
   );
 }
@@ -395,6 +462,22 @@ export function ProjectDetailPane({
 
         <div className="flex-1 overflow-y-auto">
           <div className="px-8 py-6 space-y-4 bg-gray-50/50">
+            <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-gray-500">
+                  <Gavel className="w-5 h-5" />
+                  <span className="text-sm font-medium">Judging Notes</span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs font-medium text-gray-400">
+                    Table
+                  </span>
+                  <TableNumberInput project={project} />
+                </div>
+              </div>
+              <NotesInput project={project} />
+            </div>
+
             {project.repo_content_truncated && (
               <div className="flex items-start gap-3 border border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-950/20 rounded-xl p-4">
                 <AlertTriangle className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
@@ -775,17 +858,12 @@ export function ProjectDetailPane({
               <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0">
                 <Gavel className="w-4 h-4 text-indigo-600" />
               </div>
+              <span className="text-sm font-medium text-gray-700">Score</span>
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
               <JudgingScoreInput project={project} />
             </div>
-
-            <div className="flex items-center gap-2 flex-1">
-              <NotesInput project={project} />
-            </div>
-
-            <div className="w-12"></div>
           </div>
         </div>
 

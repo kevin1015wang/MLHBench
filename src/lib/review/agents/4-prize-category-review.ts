@@ -48,11 +48,14 @@ function buildUserPrompt({
   project: ReviewContext["project"];
   repoContent: string;
 }) {
-  const { csv_row, ...projectWithoutCsv } = project;
+  const { csv_row, judging_notes, ...projectWithoutCsv } = project;
   const csvRow = csv_row ?? {};
 
   return `
 prize_slugs_to_review: ${prizeSlugs.join(", ")}
+
+judge_notes (live notes a judge took while watching the team's pitch/demo; supplementary only, may be empty):
+${judging_notes || "(none)"}
 
 project_record (excluding csv_row):
 ${JSON.stringify(projectWithoutCsv, null, 2)}
@@ -63,7 +66,7 @@ ${JSON.stringify(csvRow, null, 2)}
 repo_code_pack (full repository contents):
 ${repoContent || "(no code fetched)"}
 
-Return only JSON with keys for each prize slug: status and message. Base your decision solely on evidence found in repo_code_pack.
+Return only JSON with keys for each prize slug: status and message. Base your decision solely on evidence found in repo_code_pack; judge_notes can point you at what to look for but never substitutes for code evidence.
 `.trim();
 }
 
@@ -86,6 +89,7 @@ ${guidance}
 Rules:
 - Evaluate each prize independently using the provided guidance.
 - Judge using repository code only. The project description is not reliable for confirming technology usage.
+- judge_notes (live notes from watching the pitch/demo) can point you at what to look for in the code, but never counts as evidence on its own.
 - If the code shows the required technology in use, respond with status "valid" and briefly explain the evidence.
 - If the code does NOT show the required technology, respond with status "invalid" and explain what is missing or contradictory in the code.
 - Do not invent files or behaviors that are not present in repo_code_pack.

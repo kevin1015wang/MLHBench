@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ChevronUp,
   Loader2,
+  Maximize2,
   Minus,
   Octagon,
   Play,
@@ -30,6 +31,11 @@ import { StatusBadge } from "@/components/status/status-badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Tooltip,
@@ -58,10 +64,10 @@ import { useStore } from "@/lib/store";
 import { toTitleCase } from "@/lib/utils/string-utils";
 
 // Shared debounce timers ref (module-level to persist across renders)
-// Key format: `${projectId}:${type}` to support both rating and notes for the same project
+// Key format: `${projectId}:${type}` to support rating/notes/table number for the same project
 const debounceTimersRef = new Map<
   string,
-  { timer: NodeJS.Timeout; type: "rating" | "notes" }
+  { timer: NodeJS.Timeout; type: "rating" | "notes" | "table_number" }
 >();
 
 // Component for judging score cell with debounced save
@@ -148,12 +154,14 @@ function JudgingScoreCell({ project }: { readonly project: Project }) {
   );
 }
 
-// Component for notes cell with debounced save
+// Component for notes cell with debounced save, plus a pop-out editor for
+// writing longer notes without being confined to the table cell.
 function NotesCell({ project }: { readonly project: Project }) {
   const { updateProject } = useStore();
   const [localValue, setLocalValue] = React.useState(
     project.judging_notes ?? "",
   );
+  const [isExpanded, setIsExpanded] = React.useState(false);
 
   React.useEffect(() => {
     setLocalValue(project.judging_notes ?? "");
@@ -210,21 +218,125 @@ function NotesCell({ project }: { readonly project: Project }) {
   };
 
   return (
-    <Textarea
+    <div className="relative w-full max-w-[300px]">
+      <Textarea
+        value={localValue}
+        onChange={handleChange}
+        className="w-full min-h-8 max-h-32 text-sm resize-none pr-7"
+        placeholder="Add notes..."
+        rows={1}
+        style={{
+          height: "auto",
+          minHeight: "2rem",
+        }}
+        onInput={(e) => {
+          const target = e.target as HTMLTextAreaElement;
+          target.style.height = "auto";
+          target.style.height = `${Math.min(target.scrollHeight, 128)}px`;
+        }}
+      />
+      <Popover open={isExpanded} onOpenChange={setIsExpanded}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="absolute top-1 right-1 h-6 w-6 text-muted-foreground hover:text-foreground"
+            aria-label="Expand notes"
+          >
+            <Maximize2 className="h-3.5 w-3.5" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent
+          className="w-96 p-3"
+          align="end"
+          onOpenAutoFocus={(e) => {
+            // Let the textarea take focus instead of the popover container
+            e.preventDefault();
+            (e.target as HTMLElement)
+              .querySelector("textarea")
+              ?.focus({ preventScroll: true });
+          }}
+        >
+          <Textarea
+            value={localValue}
+            onChange={handleChange}
+            className="w-full min-h-64 text-sm resize-y"
+            placeholder="Add notes..."
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+// Component for table number cell with debounced save
+function TableNumberCell({ project }: { readonly project: Project }) {
+  const { updateProject } = useStore();
+  const [localValue, setLocalValue] = React.useState(
+    project.table_number ?? "",
+  );
+
+  React.useEffect(() => {
+    setLocalValue(project.table_number ?? "");
+  }, [project.table_number]);
+
+  const updateProjectRef = React.useRef(updateProject);
+  React.useEffect(() => {
+    updateProjectRef.current = updateProject;
+  });
+
+  // Cleanup timer on unmount
+  React.useEffect(() => {
+    const timerKey = `${project.id}:table_number`;
+    return () => {
+      const existing = debounceTimersRef.get(timerKey);
+      if (existing?.type === "table_number") {
+        clearTimeout(existing.timer);
+        debounceTimersRef.delete(timerKey);
+      }
+    };
+  }, [project.id]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setLocalValue(newValue);
+
+    // Clear existing timer using unique key
+    const timerKey = `${project.id}:table_number`;
+    const existing = debounceTimersRef.get(timerKey);
+    if (existing?.type === "table_number") {
+      clearTimeout(existing.timer);
+    }
+
+    // Set debounced save to database (and update store)
+    const timer = setTimeout(async () => {
+      try {
+        // Update store
+        updateProjectRef.current(project.id, { table_number: newValue });
+
+        // Save to database
+        const { createClient } = await import("@/lib/supabase/client");
+        const supabase = createClient();
+        await supabase
+          .from("projects")
+          .update({ table_number: newValue })
+          .eq("id", project.id);
+      } catch (error) {
+        console.error("Failed to save table number:", error);
+      }
+      debounceTimersRef.delete(timerKey);
+    }, 2000);
+
+    debounceTimersRef.set(timerKey, { timer, type: "table_number" });
+  };
+
+  return (
+    <Input
       value={localValue}
       onChange={handleChange}
-      className="w-full min-h-8 max-h-32 text-sm resize-none max-w-[300px]"
-      placeholder="Add notes..."
-      rows={1}
-      style={{
-        height: "auto",
-        minHeight: "2rem",
-      }}
-      onInput={(e) => {
-        const target = e.target as HTMLTextAreaElement;
-        target.style.height = "auto";
-        target.style.height = `${Math.min(target.scrollHeight, 128)}px`;
-      }}
+      className="h-8 w-20 text-sm"
+      placeholder="—"
     />
   );
 }
@@ -741,6 +853,16 @@ export function ProjectTable({
           <DataTableColumnHeader column={column} label="Score" />
         ),
         cell: ({ row }) => <JudgingScoreCell project={row.original} />,
+        enableSorting: true,
+        size: 100,
+      },
+      {
+        id: "table_number",
+        accessorKey: "table_number",
+        header: ({ column }: { column: Column<Project, unknown> }) => (
+          <DataTableColumnHeader column={column} label="Table" />
+        ),
+        cell: ({ row }) => <TableNumberCell project={row.original} />,
         enableSorting: true,
         size: 100,
       },

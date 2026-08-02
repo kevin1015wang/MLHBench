@@ -92,6 +92,7 @@ create table projects (
   judging_shortlist boolean not null default false,
   judging_rating numeric,
   judging_notes text,
+  table_number text,
 
   status project_processing_status not null default 'unprocessed',
   project_processing_status_message text,
