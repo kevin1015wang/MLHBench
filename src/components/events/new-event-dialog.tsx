@@ -189,49 +189,58 @@ export function NewEventDialog({ open, onOpenChange }: NewEventDialogProps) {
         </DialogHeader>
 
         <div className="space-y-4 min-w-0 py-2">
-          <FileUpload
-            value={files}
-            onValueChange={handleFilesChange}
-            accept=".csv"
-            maxFiles={1}
-            maxSize={10 * 1024 * 1024}
-            onFileValidate={handleFileValidate}
-            disabled={isSubmitting}
-          >
-            <FileUploadDropzone className="border-2 border-dashed rounded-lg p-8 text-center hover:bg-accent/50 transition-colors">
-              <div className="space-y-2">
-                <div className="text-sm font-medium text-foreground">
-                  Drag CSV file here
+          <div className="space-y-2">
+            <Label>DevPost Projects CSV</Label>
+            <p className="text-xs text-muted-foreground">
+              Set <span className="font-semibold">PII</span> to{" "}
+              <span className="font-semibold">include</span> and{" "}
+              <span className="font-semibold">Sort by opt-in prize</span> to
+              <span className="font-semibold"> unchecked</span>.
+            </p>
+            <FileUpload
+              value={files}
+              onValueChange={handleFilesChange}
+              accept=".csv"
+              maxFiles={1}
+              maxSize={10 * 1024 * 1024}
+              onFileValidate={handleFileValidate}
+              disabled={isSubmitting}
+            >
+              <FileUploadDropzone className="border-2 border-dashed rounded-lg p-8 text-center hover:bg-accent/50 transition-colors">
+                <div className="space-y-2">
+                  <div className="text-sm font-medium text-foreground">
+                    Drag CSV file here
+                  </div>
+                  <div className="text-xs text-muted-foreground">or</div>
+                  <FileUploadTrigger asChild>
+                    <Button variant="outline" size="sm" type="button">
+                      Choose File
+                    </Button>
+                  </FileUploadTrigger>
                 </div>
-                <div className="text-xs text-muted-foreground">or</div>
-                <FileUploadTrigger asChild>
-                  <Button variant="outline" size="sm" type="button">
-                    Choose File
-                  </Button>
-                </FileUploadTrigger>
-              </div>
-            </FileUploadDropzone>
+              </FileUploadDropzone>
 
-            <FileUploadList className="space-y-2">
-              <FileUploadItem
-                value={files[0]}
-                className="flex items-center gap-3 p-3 border rounded-md bg-accent/30"
-              >
-                <FileUploadItemPreview className="shrink-0" />
-                <FileUploadItemMetadata className="flex-1 min-w-0 overflow-hidden" />
-                <FileUploadItemDelete asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="shrink-0"
-                    type="button"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </FileUploadItemDelete>
-              </FileUploadItem>
-            </FileUploadList>
-          </FileUpload>
+              <FileUploadList className="space-y-2">
+                <FileUploadItem
+                  value={files[0]}
+                  className="flex items-center gap-3 p-3 border rounded-md bg-accent/30"
+                >
+                  <FileUploadItemPreview className="shrink-0" />
+                  <FileUploadItemMetadata className="flex-1 min-w-0 overflow-hidden" />
+                  <FileUploadItemDelete asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="shrink-0"
+                      type="button"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </FileUploadItemDelete>
+                </FileUploadItem>
+              </FileUploadList>
+            </FileUpload>
+          </div>
 
           <div className="space-y-2">
             <Label htmlFor="new-event-name">Event Name</Label>
