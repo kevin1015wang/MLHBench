@@ -32,14 +32,59 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+export type ViewMode = "default" | "judging" | "review";
+
+interface ViewModeDropdownProps {
+  viewMode: ViewMode;
+  onViewModeChange: (mode: ViewMode) => void;
+}
+
+const viewModeLabels: Record<ViewMode, string> = {
+  default: "Default View",
+  judging: "Judging View",
+  review: "Review View",
+};
+
+export function ViewModeDropdown({
+  viewMode,
+  onViewModeChange,
+}: ViewModeDropdownProps) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" className="h-10 gap-2">
+          {viewModeLabels[viewMode]}
+          <ChevronDown className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel>View Mode</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {(Object.keys(viewModeLabels) as ViewMode[]).map((mode) => (
+          <DropdownMenuCheckboxItem
+            key={mode}
+            checked={viewMode === mode}
+            onCheckedChange={(checked) => {
+              if (checked) onViewModeChange(mode);
+            }}
+            onSelect={(e) => e.preventDefault()}
+          >
+            {viewModeLabels[mode]}
+          </DropdownMenuCheckboxItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 interface DataTableToolbarProps<TData> {
   table: TanstackTable<TData>;
   onRunAll?: () => void;
   onRunSelected?: (selectedIds: string[]) => void;
   onRerunFailed?: () => void;
   onImport?: () => void;
-  isJudgingView?: boolean;
-  onJudgingViewChange?: (enabled: boolean) => void;
+  viewMode?: ViewMode;
+  onViewModeChange?: (mode: ViewMode) => void;
   allProcessed?: boolean;
   hasNoProjects?: boolean;
   hasFailedProjects?: boolean;
@@ -84,8 +129,8 @@ export function DataTableToolbar<TData>({
   onRunSelected,
   onRerunFailed,
   onImport,
-  isJudgingView = false,
-  onJudgingViewChange,
+  viewMode = "default",
+  onViewModeChange,
   allProcessed = false,
   hasNoProjects = false,
   hasFailedProjects = false,
@@ -331,6 +376,21 @@ export function DataTableToolbar<TData>({
       onRunAll();
     }
   };
+
+  // Review View has its own layout entirely (no table, no filters/run/import
+  // controls) — just show the dropdown so the user can switch back out.
+  if (viewMode === "review") {
+    return (
+      <div className="flex items-center justify-end">
+        {onViewModeChange && (
+          <ViewModeDropdown
+            viewMode={viewMode}
+            onViewModeChange={onViewModeChange}
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center justify-between">
@@ -718,41 +778,11 @@ export function DataTableToolbar<TData>({
           </Button>
         )}
         {/* View Mode Dropdown */}
-        {onJudgingViewChange && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="h-10 gap-2">
-                {isJudgingView ? "Judging View" : "Default View"}
-                <ChevronDown className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>View Mode</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuCheckboxItem
-                checked={!isJudgingView}
-                onCheckedChange={(checked) => {
-                  if (checked) {
-                    onJudgingViewChange(false);
-                  }
-                }}
-                onSelect={(e) => e.preventDefault()}
-              >
-                Default View
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={isJudgingView}
-                onCheckedChange={(checked) => {
-                  if (checked) {
-                    onJudgingViewChange(true);
-                  }
-                }}
-                onSelect={(e) => e.preventDefault()}
-              >
-                Judging View
-              </DropdownMenuCheckboxItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        {onViewModeChange && (
+          <ViewModeDropdown
+            viewMode={viewMode}
+            onViewModeChange={onViewModeChange}
+          />
         )}
         {onImport && (
           <Button
@@ -760,7 +790,7 @@ export function DataTableToolbar<TData>({
             variant={importVariant === "default" ? "default" : "outline"}
             className={importClassName}
           >
-            {isJudgingView ? (
+            {viewMode === "judging" ? (
               <>
                 <Download className="h-4 w-4" />
                 Export CSV

@@ -12,7 +12,7 @@ export interface FilterState {
   techStackMode?: "intersection" | "union";
   hasGithub?: boolean;
   showMlhPrizesOnly?: boolean;
-  isJudgingView?: boolean;
+  viewMode?: "default" | "judging" | "review";
   columnVisibility?: Record<string, boolean>;
   // Sorting state from @tanstack/react-table (id and direction per column)
   sorting?: Array<{

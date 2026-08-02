@@ -5,6 +5,7 @@ import type { Enums, Tables } from "@/database.types";
 type Event = Tables<"events">;
 type Project = Tables<"projects">;
 type PrizeCategory = Tables<"prize_categories">;
+type ProjectRanking = Tables<"project_rankings">;
 type ProjectProcessingStatus = Enums<"project_processing_status">;
 type ComplexityRating = Enums<"complexity_rating">;
 type NotificationType = "info" | "success" | "warning" | "error";
@@ -20,18 +21,19 @@ interface AppState {
   events: Event[];
   projects: Project[];
   prizeCategories: PrizeCategory[];
+  projectRankings: ProjectRanking[];
   selectedEventId: string | null;
   isProcessing: boolean;
   processingProjects: string[];
   showProcessingModal: boolean;
 
   recentlyViewedProjects: Array<{ id: string; timestamp: string }>;
-  favoriteProjects: string[];
   notifications: NotificationEntry[];
 
   setEvents: (events: Event[]) => void;
   setProjects: (projects: Project[]) => void;
   setPrizeCategories: (categories: PrizeCategory[]) => void;
+  setProjectRankings: (rankings: ProjectRanking[]) => void;
   setSelectedEventId: (id: string | null) => void;
   updateProject: (id: string, updates: Partial<Project>) => void;
   updateEvent: (id: string, updates: Partial<Event>) => void;
@@ -46,10 +48,11 @@ interface AppState {
   clearNotifications: () => void;
 }
 
-export const useStore = create<AppState>((set) => ({
+export const useStore = create<AppState>((set, get) => ({
   events: [],
   projects: [],
   prizeCategories: [],
+  projectRankings: [],
   selectedEventId: null,
   isProcessing: false,
   processingProjects: [],
@@ -73,10 +76,6 @@ export const useStore = create<AppState>((set) => ({
           return parsed;
         })()
       : [],
-  favoriteProjects:
-    typeof window !== "undefined"
-      ? JSON.parse(localStorage.getItem("favoriteProjects") || "[]")
-      : [],
   notifications:
     typeof window !== "undefined"
       ? JSON.parse(localStorage.getItem("notifications") || "[]")
@@ -85,6 +84,7 @@ export const useStore = create<AppState>((set) => ({
   setEvents: (events) => set({ events }),
   setProjects: (projects) => set({ projects }),
   setPrizeCategories: (prizeCategories) => set({ prizeCategories }),
+  setProjectRankings: (projectRankings) => set({ projectRankings }),
   setSelectedEventId: (id) => set({ selectedEventId: id }),
   updateProject: (id, updates) =>
     set((state) => ({
@@ -120,17 +120,25 @@ export const useStore = create<AppState>((set) => ({
       }
       return { recentlyViewedProjects: updated };
     }),
-  toggleFavoriteProject: (projectId) =>
-    set((state) => {
-      const isFavorite = state.favoriteProjects.includes(projectId);
-      const updated = isFavorite
-        ? state.favoriteProjects.filter((id) => id !== projectId)
-        : [...state.favoriteProjects, projectId];
-      if (typeof window !== "undefined") {
-        localStorage.setItem("favoriteProjects", JSON.stringify(updated));
-      }
-      return { favoriteProjects: updated };
-    }),
+  toggleFavoriteProject: (projectId) => {
+    const project = get().projects.find((p) => p.id === projectId);
+    if (!project) return;
+    const isFavorite = !project.is_favorite;
+    set((state) => ({
+      projects: state.projects.map((p) =>
+        p.id === projectId ? { ...p, is_favorite: isFavorite } : p,
+      ),
+    }));
+    void (async () => {
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("projects")
+        .update({ is_favorite: isFavorite })
+        .eq("id", projectId);
+      if (error) console.error("Failed to update favorite:", error);
+    })();
+  },
   addNotification: ({ message, type }) =>
     set((state) => {
       const entry: NotificationEntry = {
@@ -171,4 +179,5 @@ export type {
   NotificationEntry,
   NotificationType,
   PrizeCategory,
+  ProjectRanking,
 };

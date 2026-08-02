@@ -15,7 +15,6 @@ export function Sidebar({ onProjectClick }: SidebarProps) {
     projects,
     selectedEventId,
     recentlyViewedProjects,
-    favoriteProjects,
     toggleFavoriteProject,
   } = useStore();
   const [showRecentlyViewed, setShowRecentlyViewed] = useState(false);
@@ -27,7 +26,7 @@ export function Sidebar({ onProjectClick }: SidebarProps) {
 
   // Favorite projects for the event
   const favoriteProjectsForEvent = projects.filter(
-    (p) => p.event_id === selectedEventId && favoriteProjects.includes(p.id),
+    (p) => p.event_id === selectedEventId && p.is_favorite,
   );
 
   // Get recently viewed projects for the selected event
@@ -149,7 +148,7 @@ export function Sidebar({ onProjectClick }: SidebarProps) {
                         <span className="text-xs text-gray-400 dark:text-gray-500">
                           {formatTimeAgo(item.timestamp)}
                         </span>
-                        {favoriteProjects.includes(item.project.id) && (
+                        {item.project.is_favorite && (
                           <Star className="w-3 h-3 fill-yellow-500 text-yellow-500" />
                         )}
                       </div>

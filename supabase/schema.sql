@@ -108,7 +108,9 @@ create table projects (
   -- window and had to be cut down before the code/prize review agents ran.
   repo_content_truncated boolean not null default false,
 
-  prize_results jsonb not null default '{}'::jsonb
+  prize_results jsonb not null default '{}'::jsonb,
+
+  is_favorite boolean not null default false
 );
 
 create index projects_event_id_idx on projects(event_id);
@@ -116,6 +118,7 @@ create index projects_status_idx on projects(event_id, status);
 create index projects_shortlist_idx on projects(event_id, judging_shortlist);
 create index projects_complexity_idx on projects(event_id, technical_complexity);
 create index projects_project_title_idx on projects(event_id, project_title);
+create index projects_favorite_idx on projects(event_id, is_favorite);
 
 create table prize_categories (
   id uuid primary key default gen_random_uuid(),
@@ -136,16 +139,40 @@ create table prize_categories (
 
 create index prize_categories_slug_idx on prize_categories(slug);
 
+-- One row per (project, prize_category) recording where that project ranks
+-- within that category's shortlist. Rank order is rewritten wholesale on
+-- every reorder (delete-then-reinsert, see src/lib/save-project-rankings.ts),
+-- so there's intentionally no uniqueness constraint on (prize_category_id,
+-- rank) -- enforcing it at the DB level would just create transient conflicts
+-- mid-rewrite for no benefit.
+create table project_rankings (
+  id uuid primary key default gen_random_uuid(),
+  event_id uuid not null references events(id) on delete cascade,
+  project_id uuid not null references projects(id) on delete cascade,
+  prize_category_id uuid not null references prize_categories(id) on delete cascade,
+  rank integer not null,
+
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+
+  constraint project_rankings_project_category_unique unique (project_id, prize_category_id)
+);
+
+create index project_rankings_category_idx on project_rankings(prize_category_id, rank);
+create index project_rankings_event_idx on project_rankings(event_id);
+
 -- Anon/publishable key is used for all reads and writes (no service-role key
 -- in the app), so RLS must permit the anon role to select/insert/update/delete
--- on all three tables. See README "Notes & tips".
+-- on all tables. See README "Notes & tips".
 alter table events enable row level security;
 alter table projects enable row level security;
 alter table prize_categories enable row level security;
+alter table project_rankings enable row level security;
 
 create policy "anon full access" on events for all to anon using (true) with check (true);
 create policy "anon full access" on projects for all to anon using (true) with check (true);
 create policy "anon full access" on prize_categories for all to anon using (true) with check (true);
+create policy "anon full access" on project_rankings for all to anon using (true) with check (true);
 
 -- The app's live "Processing Projects" view relies on Supabase Realtime
 -- (useRealtimeSubscription) pushing postgres_changes events for status/result
@@ -155,3 +182,4 @@ create policy "anon full access" on prize_categories for all to anon using (true
 alter publication supabase_realtime add table events;
 alter publication supabase_realtime add table projects;
 alter publication supabase_realtime add table prize_categories;
+alter publication supabase_realtime add table project_rankings;

@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 type Event = Tables<"events">;
 type Project = Tables<"projects">;
 type PrizeCategory = Tables<"prize_categories">;
+type ProjectRanking = Tables<"project_rankings">;
 
 export function useRealtimeSubscription() {
   const queryClient = useQueryClient();
@@ -151,6 +152,38 @@ export function useRealtimeSubscription() {
                 if (eventType === "DELETE")
                   return oldCats.filter((c) => c.id !== oldRecord.id);
                 return oldCats;
+              },
+            );
+          },
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "project_rankings" },
+          (payload: RealtimePostgresChangesPayload<ProjectRanking>) => {
+            console.log("Realtime project_ranking update:", payload);
+            queryClient.setQueriesData<ProjectRanking[]>(
+              { queryKey: ["project_rankings"] },
+              (oldRankings) => {
+                if (!oldRankings) return oldRankings;
+                const { eventType, new: newRecord, old: oldRecord } = payload;
+
+                if (eventType === "INSERT") {
+                  // Guard against duplicate delivery (e.g. an optimistic
+                  // local insert racing the realtime echo of that same row).
+                  if (oldRankings.some((r) => r.id === newRecord.id)) {
+                    return oldRankings.map((r) =>
+                      r.id === newRecord.id ? newRecord : r,
+                    );
+                  }
+                  return [...oldRankings, newRecord];
+                }
+                if (eventType === "UPDATE")
+                  return oldRankings.map((r) =>
+                    r.id === newRecord.id ? newRecord : r,
+                  );
+                if (eventType === "DELETE")
+                  return oldRankings.filter((r) => r.id !== oldRecord.id);
+                return oldRankings;
               },
             );
           },

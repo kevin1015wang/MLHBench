@@ -226,7 +226,7 @@ export function ProjectDetailPane({
     prizeCategoryNameMap,
     prizeCategories,
   } = usePrizeCategories();
-  const { favoriteProjects, toggleFavoriteProject } = useStore();
+  const { toggleFavoriteProject } = useStore();
 
   if (!project) return null;
 
@@ -292,14 +292,14 @@ export function ProjectDetailPane({
                   onClick={() => toggleFavoriteProject(project.id)}
                   className="group p-1.5 hover:bg-gray-100 rounded-md transition-all border border-transparent hover:border-gray-200 outline-none focus-visible:ring-2 focus-visible:ring-gray-400"
                   aria-label={
-                    favoriteProjects.includes(project.id)
+                    project.is_favorite
                       ? "Remove from favorites"
                       : "Add to favorites"
                   }
                 >
                   <Star
                     className={`w-6 h-6 transition-colors ${
-                      favoriteProjects.includes(project.id)
+                      project.is_favorite
                         ? "fill-yellow-400 text-yellow-400"
                         : "text-gray-300 group-hover:text-gray-400"
                     }`}

@@ -18,10 +18,14 @@ import {
 import * as React from "react";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
-import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
+import {
+  DataTableToolbar,
+  type ViewMode,
+} from "@/components/data-table/data-table-toolbar";
 import { DevpostIcon } from "@/components/icons/devpost-icon";
 import { GithubIcon } from "@/components/icons/github-icon";
 import { ProcessingModal } from "@/components/processing-modal";
+import { ReviewView } from "@/components/projects/review-view";
 import { SaveStatusIndicator } from "@/components/save-status-indicator";
 import { StatusBadge } from "@/components/status/status-badge";
 import { StatusIcon } from "@/components/status/status-icon";
@@ -196,7 +200,7 @@ interface ProjectTableProps {
   readonly onBatchRun: (projectIds: string[]) => void;
   readonly onImport: () => void;
   readonly onProjectClick: (project: Project) => void;
-  readonly onJudgingViewChange?: (isJudgingView: boolean) => void;
+  readonly onViewModeChange?: (viewMode: ViewMode) => void;
   readonly eventId?: string | null;
 }
 
@@ -254,10 +258,10 @@ export function ProjectTable({
   onBatchRun,
   onImport,
   onProjectClick,
-  onJudgingViewChange,
+  onViewModeChange,
   eventId,
 }: ProjectTableProps) {
-  const { favoriteProjects, toggleFavoriteProject } = useStore();
+  const { toggleFavoriteProject } = useStore();
 
   // Load persisted filter state when eventId changes
   const persistedState = React.useMemo(() => {
@@ -271,14 +275,14 @@ export function ProjectTable({
   );
 
   const [title, setTitle] = useQueryState("title", parseAsString);
-  const [isJudgingView, setIsJudgingView] = React.useState(
-    persistedState.isJudgingView ?? false,
+  const [viewMode, setViewMode] = React.useState<ViewMode>(
+    persistedState.viewMode ?? "default",
   );
 
-  // Notify parent when judging view changes
+  // Notify parent when view mode changes
   React.useEffect(() => {
-    onJudgingViewChange?.(isJudgingView);
-  }, [isJudgingView, onJudgingViewChange]);
+    onViewModeChange?.(viewMode);
+  }, [viewMode, onViewModeChange]);
 
   const [status, setStatus] = useQueryState(
     "status",
@@ -438,8 +442,8 @@ export function ProjectTable({
       } else {
         setShowMlhPrizesOnly(true);
       }
-      if (persistedState.isJudgingView !== undefined) {
-        setIsJudgingView(persistedState.isJudgingView);
+      if (persistedState.viewMode !== undefined) {
+        setViewMode(persistedState.viewMode);
       }
 
       // Mark restoration as complete after a brief delay to allow state updates
@@ -556,7 +560,7 @@ export function ProjectTable({
   const filteredData = React.useMemo(() => {
     return projects.filter((project) => {
       // In judging view, only show projects with at least one MLH prize track
-      if (isJudgingView && getPrizeTracks(project).length === 0) {
+      if (viewMode === "judging" && getPrizeTracks(project).length === 0) {
         return false;
       }
 
@@ -617,7 +621,7 @@ export function ProjectTable({
     });
   }, [
     projects,
-    isJudgingView,
+    viewMode,
     title,
     status,
     complexity,
@@ -670,7 +674,7 @@ export function ProjectTable({
         id: "favorite",
         header: () => null,
         cell: ({ row }) => {
-          const isFavorite = favoriteProjects.includes(row.original.id);
+          const isFavorite = row.original.is_favorite;
           return (
             <button
               type="button"
@@ -1163,7 +1167,6 @@ export function ProjectTable({
   }, [
     onProjectClick,
     onRunAnalysis,
-    favoriteProjects,
     handleToggleFavorite,
     prizeCategoryMap,
     prizeCategoryNameMap,
@@ -1175,6 +1178,7 @@ export function ProjectTable({
   // Tracks, and Notes only. Everything else (select, favorite, score,
   // complexity/accuracy, actions) is only shown in the regular table view.
   const initialColumnVisibility = React.useMemo(() => {
+    const isJudgingView = viewMode === "judging";
     const defaultVisibility: Record<string, boolean> = {
       select: !isJudgingView,
       favorite: !isJudgingView,
@@ -1200,7 +1204,7 @@ export function ProjectTable({
     }
 
     return defaultVisibility;
-  }, [isJudgingView, persistedState.columnVisibility]);
+  }, [viewMode, persistedState.columnVisibility]);
 
   const { table, sorting } = useDataTable({
     data: filteredData,
@@ -1214,15 +1218,16 @@ export function ProjectTable({
         })) ?? [],
       columnPinning: {
         left: ["select", "favorite"],
-        right: isJudgingView ? ["notes"] : ["actions", "notes"],
+        right: viewMode === "judging" ? ["notes"] : ["actions", "notes"],
       },
       columnVisibility: initialColumnVisibility,
     },
     getRowId: (row) => row.id,
   });
 
-  // Update column visibility when judging view changes
+  // Update column visibility when view mode changes
   React.useEffect(() => {
+    const isJudgingView = viewMode === "judging";
     table.getColumn("select")?.toggleVisibility(!isJudgingView);
     table.getColumn("favorite")?.toggleVisibility(!isJudgingView);
     table.getColumn("judging_score")?.toggleVisibility(false);
@@ -1235,7 +1240,7 @@ export function ProjectTable({
     table.getColumn("prize_tracks")?.toggleVisibility(true);
     table.getColumn("notes")?.toggleVisibility(isJudgingView);
     table.getColumn("actions")?.toggleVisibility(!isJudgingView);
-  }, [isJudgingView, table]);
+  }, [viewMode, table]);
 
   // Track the last eventId we restored column visibility for
   const lastRestoredColumnVisibilityEventIdRef = React.useRef<
@@ -1311,7 +1316,7 @@ export function ProjectTable({
       techStackMode,
       hasGithub: hasGithub ?? undefined,
       showMlhPrizesOnly,
-      isJudgingView,
+      viewMode,
       columnVisibility: table.getState().columnVisibility,
       sorting,
     };
@@ -1327,7 +1332,7 @@ export function ProjectTable({
     techStackMode,
     hasGithub,
     showMlhPrizesOnly,
-    isJudgingView,
+    viewMode,
     sorting,
     table,
   ]);
@@ -1376,70 +1381,80 @@ export function ProjectTable({
   const { showProcessingModal } = useStore();
 
   // Check if we're in judging view with no results
-  const isJudgingViewWithNoResults = isJudgingView && filteredData.length === 0;
+  const isJudgingViewWithNoResults =
+    viewMode === "judging" && filteredData.length === 0;
   const emptyStateMessage = isJudgingViewWithNoResults
     ? "No results found. Favorite a project by clicking the star icon for it to appear in judging view."
     : undefined;
 
   return (
     <div className="space-y-4 relative">
-      <DataTable table={table} emptyStateMessage={emptyStateMessage}>
-        {/* Overlay background when processing - contained within DataTable */}
-        {showProcessingModal && (
-          <div className="absolute inset-0 bg-blue-50/20 dark:bg-blue-950/50 backdrop-blur-xs z-40 rounded-md pointer-events-none" />
-        )}
+      <div
+        className={
+          showProcessingModal
+            ? "opacity-50 pointer-events-none transition-opacity"
+            : ""
+        }
+      >
+        <DataTableToolbar
+          table={table}
+          onRunAll={handleRunAll}
+          onRunSelected={(ids) => onBatchRun(ids)}
+          onRerunFailed={handleRerunFailed}
+          onImport={viewMode === "judging" ? handleExportCSV : onImport}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          allProcessed={allProcessed}
+          hasNoProjects={hasNoProjects}
+          hasFailedProjects={hasFailedProjects}
+          failedProjectsCount={failedInvalidErroredProjects.length}
+          status={status ?? []}
+          onStatusChange={setStatus}
+          complexity={complexity ?? []}
+          onComplexityChange={setComplexity}
+          prizeTracks={prizeTracks ?? []}
+          onPrizeTracksChange={(value) => setPrizeTracks(value)}
+          prizeCategories={availablePrizeCategories}
+          techStack={techStack ?? []}
+          onTechStackChange={setTechStack}
+          techStackMode={techStackMode}
+          onTechStackModeChange={setTechStackMode}
+          uniqueTechStack={uniqueTechStack}
+          hasGithub={hasGithub ?? undefined}
+          onHasGithubChange={(value) => {
+            setHasGithub(value || null);
+          }}
+          showMlhPrizesOnly={showMlhPrizesOnly}
+          onShowMlhPrizesOnlyChange={setShowMlhPrizesOnly}
+          allProjects={projects}
+          title={title || ""}
+        />
+      </div>
 
-        <div
-          className={
-            showProcessingModal
-              ? "opacity-50 pointer-events-none transition-opacity"
-              : ""
-          }
-        >
-          <DataTableToolbar
-            table={table}
-            onRunAll={handleRunAll}
-            onRunSelected={(ids) => onBatchRun(ids)}
-            onRerunFailed={handleRerunFailed}
-            onImport={isJudgingView ? handleExportCSV : onImport}
-            isJudgingView={isJudgingView}
-            onJudgingViewChange={setIsJudgingView}
-            allProcessed={allProcessed}
-            hasNoProjects={hasNoProjects}
-            hasFailedProjects={hasFailedProjects}
-            failedProjectsCount={failedInvalidErroredProjects.length}
-            status={status ?? []}
-            onStatusChange={setStatus}
-            complexity={complexity ?? []}
-            onComplexityChange={setComplexity}
-            prizeTracks={prizeTracks ?? []}
-            onPrizeTracksChange={(value) => setPrizeTracks(value)}
-            prizeCategories={availablePrizeCategories}
-            techStack={techStack ?? []}
-            onTechStackChange={setTechStack}
-            techStackMode={techStackMode}
-            onTechStackModeChange={setTechStackMode}
-            uniqueTechStack={uniqueTechStack}
-            hasGithub={hasGithub ?? undefined}
-            onHasGithubChange={(value) => {
-              setHasGithub(value || null);
-            }}
-            showMlhPrizesOnly={showMlhPrizesOnly}
-            onShowMlhPrizesOnlyChange={setShowMlhPrizesOnly}
-            allProjects={projects}
-            title={title || ""}
-          />
-        </div>
+      {viewMode === "review" ? (
+        <ReviewView
+          eventId={eventId ?? null}
+          projects={projects}
+          prizeCategories={prizeCategories}
+          onProjectClick={onProjectClick}
+        />
+      ) : (
+        <DataTable table={table} emptyStateMessage={emptyStateMessage}>
+          {/* Overlay background when processing - contained within DataTable */}
+          {showProcessingModal && (
+            <div className="absolute inset-0 bg-blue-50/20 dark:bg-blue-950/50 backdrop-blur-xs z-40 rounded-md pointer-events-none" />
+          )}
 
-        {/* Processing modal - sticky positioned to stay in viewport while scrolling, contained within DataTable */}
-        {showProcessingModal && (
-          <div className="sticky top-4 z-50 flex justify-center pointer-events-none -mb-4 pb-4">
-            <div className="pointer-events-auto w-full max-w-6xl mx-4">
-              <ProcessingModal />
+          {/* Processing modal - sticky positioned to stay in viewport while scrolling, contained within DataTable */}
+          {showProcessingModal && (
+            <div className="sticky top-4 z-50 flex justify-center pointer-events-none -mb-4 pb-4">
+              <div className="pointer-events-auto w-full max-w-6xl mx-4">
+                <ProcessingModal />
+              </div>
             </div>
-          </div>
-        )}
-      </DataTable>
+          )}
+        </DataTable>
+      )}
     </div>
   );
 }

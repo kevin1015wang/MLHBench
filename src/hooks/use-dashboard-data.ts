@@ -3,11 +3,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { toast } from "sonner";
-import { getEvents, getPrizeCategories, getProjects } from "@/lib/data-service";
+import {
+  getEvents,
+  getPrizeCategories,
+  getProjectRankings,
+  getProjects,
+} from "@/lib/data-service";
 import { useStore } from "@/lib/store";
 
 export function useDashboardData(activeEventId: string | null) {
-  const { setEvents, setProjects, setPrizeCategories } = useStore();
+  const { setEvents, setProjects, setPrizeCategories, setProjectRankings } =
+    useStore();
 
   // 1. Fetch Events
   const {
@@ -56,6 +62,21 @@ export function useDashboardData(activeEventId: string | null) {
     refetchOnReconnect: false,
   });
 
+  // 4. Fetch Project Rankings (dependent on activeEventId)
+  const {
+    data: projectRankings,
+    isLoading: isLoadingRankings,
+    error: rankingsError,
+  } = useQuery({
+    queryKey: ["project_rankings", activeEventId],
+    queryFn: () => getProjectRankings(activeEventId || undefined),
+    enabled: true,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+  });
+
   // --- Synchronization Effects ---
 
   // Sync Events
@@ -79,18 +100,29 @@ export function useDashboardData(activeEventId: string | null) {
     }
   }, [projects, setProjects]);
 
+  // Sync Project Rankings
+  useEffect(() => {
+    if (projectRankings) {
+      setProjectRankings(projectRankings);
+    }
+  }, [projectRankings, setProjectRankings]);
+
   // Error Handling
   useEffect(() => {
-    if (eventsError || categoriesError || projectsError) {
+    if (eventsError || categoriesError || projectsError || rankingsError) {
       console.error(
         "Failed to load dashboard data",
-        eventsError || categoriesError || projectsError,
+        eventsError || categoriesError || projectsError || rankingsError,
       );
       toast.error("Failed to load dashboard data");
     }
-  }, [eventsError, categoriesError, projectsError]);
+  }, [eventsError, categoriesError, projectsError, rankingsError]);
 
-  const isLoading = isLoadingEvents || isLoadingCategories || isLoadingProjects;
+  const isLoading =
+    isLoadingEvents ||
+    isLoadingCategories ||
+    isLoadingProjects ||
+    isLoadingRankings;
 
   return {
     isLoading,

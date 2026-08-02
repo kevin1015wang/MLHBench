@@ -129,6 +129,7 @@ export type Database = {
           event_id: string
           github_url: string | null
           id: string
+          is_favorite: boolean
           judging_notes: string | null
           judging_rating: number | null
           judging_shortlist: boolean
@@ -169,6 +170,7 @@ export type Database = {
           event_id: string
           github_url?: string | null
           id?: string
+          is_favorite?: boolean
           judging_notes?: string | null
           judging_rating?: number | null
           judging_shortlist?: boolean
@@ -209,6 +211,7 @@ export type Database = {
           event_id?: string
           github_url?: string | null
           id?: string
+          is_favorite?: boolean
           judging_notes?: string | null
           judging_rating?: number | null
           judging_shortlist?: boolean
@@ -243,6 +246,58 @@ export type Database = {
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_rankings: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          prize_category_id: string
+          project_id: string
+          rank: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          prize_category_id: string
+          project_id: string
+          rank: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          prize_category_id?: string
+          project_id?: string
+          rank?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_rankings_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_rankings_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_rankings_prize_category_id_fkey"
+            columns: ["prize_category_id"]
+            isOneToOne: false
+            referencedRelation: "prize_categories"
             referencedColumns: ["id"]
           },
         ]

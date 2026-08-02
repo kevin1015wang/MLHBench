@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 type Event = Tables<"events">;
 type Project = Tables<"projects">;
 type PrizeCategory = Tables<"prize_categories">;
+type ProjectRanking = Tables<"project_rankings">;
 
 export async function getEvents(): Promise<Event[]> {
   try {
@@ -57,6 +58,28 @@ export async function getPrizeCategories(): Promise<PrizeCategory[]> {
     return data || [];
   } catch (error) {
     console.error("[DataService] Failed to fetch prize categories:", error);
+    return [];
+  }
+}
+
+export async function getProjectRankings(
+  eventId?: string,
+): Promise<ProjectRanking[]> {
+  const supabase = createClient();
+
+  try {
+    let query = supabase.from("project_rankings").select("*");
+
+    if (eventId) {
+      query = query.eq("event_id", eventId);
+    }
+
+    const { data, error } = await query.order("rank", { ascending: true });
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error("[DataService] Failed to fetch project rankings:", error);
     return [];
   }
 }
