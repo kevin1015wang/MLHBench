@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { Bell, Clock } from "lucide-react";
+import { Bell, Clock, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,7 @@ const typeMap: Record<
 };
 
 export function NotificationDrawer() {
-  const { notifications } = useStore();
+  const { notifications, removeNotification, clearNotifications } = useStore();
   const [open, setOpen] = useState(false);
 
   const items = useMemo(
@@ -46,16 +46,26 @@ export function NotificationDrawer() {
       </SheetTrigger>
       <SheetContent
         side="right"
-        className="w-full sm:max-w-md p-0 flex flex-col"
+        className="w-full sm:max-w-md p-0 flex flex-col gap-0"
       >
-        <div className="p-6 border-b border-gray-200 dark:border-[#404040]">
-          <SheetHeader>
+        <SheetHeader className="p-6 pt-14 border-b border-gray-200 dark:border-[#404040]">
+          <div className="flex items-center justify-between">
             <SheetTitle className="flex items-center gap-2">
               <Bell className="w-4 h-4" />
               Notifications
             </SheetTitle>
-          </SheetHeader>
-        </div>
+            {items.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-auto py-1 px-2 text-xs text-muted-foreground hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+                onClick={clearNotifications}
+              >
+                Clear all
+              </Button>
+            )}
+          </div>
+        </SheetHeader>
         <div className="flex-1 overflow-y-auto p-6 space-y-3">
           {items.length === 0 && (
             <div className="text-sm text-muted-foreground text-center py-8">
@@ -67,9 +77,17 @@ export function NotificationDrawer() {
             return (
               <div
                 key={note.id}
-                className="border border-gray-200 dark:border-[#404040] rounded-lg p-4 bg-white dark:bg-[#1f1f1f] space-y-2 shadow-sm"
+                className="group relative border border-gray-200 dark:border-[#404040] rounded-lg p-4 bg-white dark:bg-[#1f1f1f] space-y-2 shadow-sm"
               >
-                <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  aria-label="Dismiss notification"
+                  onClick={() => removeNotification(note.id)}
+                  className="absolute top-2 right-2 rounded-full p-1 text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200 transition-opacity"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+                <div className="flex items-center justify-between pr-5">
                   <Badge className={`text-xs ${meta.className}`}>
                     {meta.label}
                   </Badge>

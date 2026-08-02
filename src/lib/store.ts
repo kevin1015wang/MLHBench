@@ -42,6 +42,8 @@ interface AppState {
   addRecentlyViewedProject: (projectId: string) => void;
   toggleFavoriteProject: (projectId: string) => void;
   addNotification: (entry: Omit<NotificationEntry, "id" | "timestamp">) => void;
+  removeNotification: (id: string) => void;
+  clearNotifications: () => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -142,6 +144,21 @@ export const useStore = create<AppState>((set) => ({
         localStorage.setItem("notifications", JSON.stringify(updated));
       }
       return { notifications: updated };
+    }),
+  removeNotification: (id) =>
+    set((state) => {
+      const updated = state.notifications.filter((n) => n.id !== id);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("notifications", JSON.stringify(updated));
+      }
+      return { notifications: updated };
+    }),
+  clearNotifications: () =>
+    set(() => {
+      if (typeof window !== "undefined") {
+        localStorage.setItem("notifications", JSON.stringify([]));
+      }
+      return { notifications: [] };
     }),
 }));
 

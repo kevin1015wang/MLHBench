@@ -31,9 +31,7 @@ export function ProjectsView({
   onProjectClick,
   eventId,
 }: ProjectsViewProps) {
-  const { projects, selectedEventId, events, updateEvent, favoriteProjects } =
-    useStore();
-  const [isJudgingView, setIsJudgingView] = React.useState(false);
+  const { projects, selectedEventId, events, updateEvent } = useStore();
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
 
   const activeEventId = eventId ?? selectedEventId ?? null;
@@ -85,20 +83,6 @@ export function ProjectsView({
 
   const startDateTime = formatDateTime(activeEvent?.starts_at);
   const endDateTime = formatDateTime(activeEvent?.ends_at);
-
-  // Calculate completion percentage
-  const completionPercentage = React.useMemo(() => {
-    // In judging view, calculate based on favorited projects only
-    const projectsToCalculate = isJudgingView
-      ? filteredProjects.filter((p) => favoriteProjects.includes(p.id))
-      : filteredProjects;
-
-    if (projectsToCalculate.length === 0) return 0;
-    const scoredCount = projectsToCalculate.filter(
-      (p) => p.judging_rating !== null && p.judging_rating !== undefined,
-    ).length;
-    return Math.round((scoredCount / projectsToCalculate.length) * 100);
-  }, [filteredProjects, isJudgingView, favoriteProjects]);
 
   // Timer calculations with real-time updates
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -300,27 +284,6 @@ export function ProjectsView({
               {timerInfo.message}
             </Badge>
           )}
-
-          {/* Completion Percentage Badge */}
-          <Badge
-            variant="outline"
-            className="relative overflow-hidden bg-gray-100 dark:bg-gray-800"
-          >
-            <div
-              className="absolute inset-0 opacity-20 transition-all"
-              style={{
-                width: `${completionPercentage}%`,
-                backgroundColor: getProgressColor(completionPercentage),
-              }}
-            />
-            <span
-              className={`relative z-10 font-semibold ${getProgressTextColor(
-                completionPercentage,
-              )}`}
-            >
-              {completionPercentage}% scored
-            </span>
-          </Badge>
         </div>
       </div>
 
@@ -331,7 +294,6 @@ export function ProjectsView({
           onBatchRun={onBatchRun}
           onImport={onImport}
           onProjectClick={onProjectClick}
-          onJudgingViewChange={setIsJudgingView}
           eventId={activeEventId}
         />
       </div>

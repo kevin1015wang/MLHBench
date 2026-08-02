@@ -37,11 +37,23 @@ type EventStatus = {
 function getEventStatus(
   startsAt: string | null,
   endsAt: string | null,
+  judgingEndsAt: string | null,
 ): EventStatus {
   const now = new Date();
   now.setHours(0, 0, 0, 0);
 
+  // Without a start/end range (the common case for new events, which only
+  // collect a judging date), fall back to judging_ends_at to decide whether
+  // the event belongs in the past or current section.
   if (!startsAt || !endsAt) {
+    if (judgingEndsAt) {
+      const judgingEnd = new Date(judgingEndsAt);
+      judgingEnd.setHours(0, 0, 0, 0);
+      if (now > judgingEnd) {
+        return { type: "ended", label: "Ended" };
+      }
+      return { type: "active", label: "Active" };
+    }
     return { type: "unknown", label: "" };
   }
 
@@ -166,30 +178,31 @@ export function EventsPage() {
     })
     .map((event) => ({
       event,
-      status: getEventStatus(event.starts_at, event.ends_at),
+      status: getEventStatus(
+        event.starts_at,
+        event.ends_at,
+        event.judging_ends_at,
+      ),
     }));
 
-  const compareByStartDateAsc = (
-    aStartsAt: string | null,
-    bStartsAt: string | null,
-  ) => {
-    if (!aStartsAt && !bStartsAt) return 0;
-    if (!aStartsAt) return 1;
-    if (!bStartsAt) return -1;
-    return new Date(aStartsAt).getTime() - new Date(bStartsAt).getTime();
+  // Falls back to judging_ends_at when there's no start date, since most
+  // events now only collect a judging date.
+  const compareByDateAsc = (a: Event, b: Event) => {
+    const aDate = a.starts_at ?? a.judging_ends_at;
+    const bDate = b.starts_at ?? b.judging_ends_at;
+    if (!aDate && !bDate) return 0;
+    if (!aDate) return 1;
+    if (!bDate) return -1;
+    return new Date(aDate).getTime() - new Date(bDate).getTime();
   };
 
   const currentEvents = eventsWithStatus
     .filter(({ status }) => status.type !== "ended")
-    .sort((a, b) =>
-      compareByStartDateAsc(a.event.starts_at, b.event.starts_at),
-    );
+    .sort((a, b) => compareByDateAsc(a.event, b.event));
 
   const pastEvents = eventsWithStatus
     .filter(({ status }) => status.type === "ended")
-    .sort((a, b) =>
-      compareByStartDateAsc(a.event.starts_at, b.event.starts_at),
-    );
+    .sort((a, b) => compareByDateAsc(a.event, b.event));
 
   return (
     <div className="space-y-6">
