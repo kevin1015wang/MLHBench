@@ -1,6 +1,6 @@
 "use client";
 
-import { Award, LogOut } from "lucide-react";
+import { Award, LogOut, Menu } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BenchLogo } from "@/components/icons/bench-logo";
@@ -29,8 +29,13 @@ import type { Event, Project } from "@/lib/store";
 interface TopBarProps {
   readonly selectedEvent?: Event;
   readonly selectedProject?: Project | null;
+  readonly onMenuClick?: () => void;
 }
-export function TopBar({ selectedEvent, selectedProject }: TopBarProps) {
+export function TopBar({
+  selectedEvent,
+  selectedProject,
+  onMenuClick,
+}: TopBarProps) {
   const pathname = usePathname();
   const { user, isLoading } = useSession();
   const isEventsPage = pathname === "/events";
@@ -46,69 +51,84 @@ export function TopBar({ selectedEvent, selectedProject }: TopBarProps) {
     : "MLH";
 
   return (
-    <header className="h-16 bg-white dark:bg-[#262626] border-b border-gray-200 dark:border-[#404040] flex items-center justify-between px-6">
-      <Breadcrumb>
-        <BreadcrumbList>
-          {isEventsPage && (
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <Link
-                  href="/events"
-                  className="flex items-center gap-3 mr-2 hover:opacity-80 transition-opacity"
-                >
-                  <BenchLogo className="w-8 h-4 text-(--mlh-dark-grey) dark:text-(--mlh-white)" />
-                  <h1 className="text-2xl font-bold text-(--mlh-dark-grey) dark:text-(--mlh-white) font-headline">
-                    Bench
-                  </h1>
-                </Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-          )}
-          {!isEventsPage && (
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <Link
-                  href="/events"
-                  className="cursor-pointer hover:text-(--mlh-red)"
-                >
-                  Events
-                </Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-          )}
-
-          {selectedEvent && (
-            <>
-              <BreadcrumbSeparator />
+    <header className="h-16 bg-white dark:bg-[#262626] border-b border-gray-200 dark:border-[#404040] flex items-center justify-between gap-2 px-4 sm:px-6">
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        {onMenuClick && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="shrink-0 md:hidden hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+            onClick={onMenuClick}
+            aria-label="Open navigation menu"
+          >
+            <Menu className="w-5 h-5" />
+          </Button>
+        )}
+        <Breadcrumb className="min-w-0">
+          <BreadcrumbList>
+            {isEventsPage && (
               <BreadcrumbItem>
-                {selectedProject ? (
-                  <BreadcrumbLink asChild>
-                    <Link
-                      href={`/events/${selectedEvent.id}`}
-                      className="cursor-pointer hover:text-(--mlh-red)"
-                    >
-                      {selectedEvent.name}
-                    </Link>
-                  </BreadcrumbLink>
-                ) : (
-                  <BreadcrumbPage>{selectedEvent.name}</BreadcrumbPage>
-                )}
+                <BreadcrumbLink asChild>
+                  <Link
+                    href="/events"
+                    className="flex items-center gap-3 mr-2 hover:opacity-80 transition-opacity"
+                  >
+                    <BenchLogo className="w-8 h-4 text-(--mlh-dark-grey) dark:text-(--mlh-white)" />
+                    <h1 className="text-2xl font-bold text-(--mlh-dark-grey) dark:text-(--mlh-white) font-headline">
+                      Bench
+                    </h1>
+                  </Link>
+                </BreadcrumbLink>
               </BreadcrumbItem>
-            </>
-          )}
-
-          {selectedProject && (
-            <>
-              <BreadcrumbSeparator />
+            )}
+            {!isEventsPage && (
               <BreadcrumbItem>
-                <BreadcrumbPage>{selectedProject.project_title}</BreadcrumbPage>
+                <BreadcrumbLink asChild>
+                  <Link
+                    href="/events"
+                    className="cursor-pointer hover:text-(--mlh-red)"
+                  >
+                    Events
+                  </Link>
+                </BreadcrumbLink>
               </BreadcrumbItem>
-            </>
-          )}
-        </BreadcrumbList>
-      </Breadcrumb>
+            )}
 
-      <div className="flex items-center gap-3">
+            {selectedEvent && (
+              <>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  {selectedProject ? (
+                    <BreadcrumbLink asChild>
+                      <Link
+                        href={`/events/${selectedEvent.id}`}
+                        className="cursor-pointer hover:text-(--mlh-red)"
+                      >
+                        {selectedEvent.name}
+                      </Link>
+                    </BreadcrumbLink>
+                  ) : (
+                    <BreadcrumbPage>{selectedEvent.name}</BreadcrumbPage>
+                  )}
+                </BreadcrumbItem>
+              </>
+            )}
+
+            {selectedProject && (
+              <>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>
+                    {selectedProject.project_title}
+                  </BreadcrumbPage>
+                </BreadcrumbItem>
+              </>
+            )}
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
+
+      <div className="flex shrink-0 items-center gap-3">
         <NotificationDrawer />
 
         <DropdownMenu>
@@ -124,7 +144,7 @@ export function TopBar({ selectedEvent, selectedProject }: TopBarProps) {
                 />
                 <AvatarFallback>{initials}</AvatarFallback>
               </Avatar>
-              <span className="text-sm font-medium max-w-32 truncate">
+              <span className="hidden max-w-32 truncate text-sm font-medium sm:inline">
                 {fullName}
               </span>
             </Button>

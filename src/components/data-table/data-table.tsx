@@ -26,8 +26,8 @@ export function DataTable<TData>({
     <div className="data-table-container space-y-4 relative">
       {children}
       <div className="rounded-md border relative">
-        <div className="relative w-full">
-          <table className="w-full caption-bottom text-sm">
+        <div className="relative w-full overflow-x-auto">
+          <table className="w-full min-w-[900px] caption-bottom text-sm">
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id}>

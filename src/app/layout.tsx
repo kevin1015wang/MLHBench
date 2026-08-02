@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Open_Sans, Space_Mono } from "next/font/google";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import "./globals.css";
@@ -21,6 +21,11 @@ const spaceMono = Space_Mono({
 export const metadata: Metadata = {
   title: "Bench - Hackathon Judging Platform",
   description: "AI-powered hackathon project evaluation and judging",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({

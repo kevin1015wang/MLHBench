@@ -5,12 +5,14 @@ import Link from "next/link";
 import { useState } from "react";
 import { BenchLogo } from "@/components/icons/bench-logo";
 import { type Project, useStore } from "@/lib/store";
+import { cn } from "@/lib/utils";
 
 interface SidebarProps {
   readonly onProjectClick: (project: Project) => void;
+  readonly className?: string;
 }
 
-export function Sidebar({ onProjectClick }: SidebarProps) {
+export function Sidebar({ onProjectClick, className }: SidebarProps) {
   const {
     projects,
     selectedEventId,
@@ -63,7 +65,12 @@ export function Sidebar({ onProjectClick }: SidebarProps) {
   };
 
   return (
-    <aside className="w-64 bg-white dark:bg-[#262626] border-r border-gray-200 dark:border-[#404040] flex flex-col">
+    <aside
+      className={cn(
+        "w-64 bg-white dark:bg-[#262626] border-r border-gray-200 dark:border-[#404040] flex flex-col",
+        className,
+      )}
+    >
       <div className="h-16 px-6 border-b border-gray-200 dark:border-[#404040] flex items-center gap-3">
         <Link
           href="/events"
