@@ -43,7 +43,8 @@ export const validateGithubRepoAgent: ReviewAgent<GithubRepoInfo> = async (
   console.debug(
     `GitHub repository is accessible for project ID ${context.project.id}.`,
   );
-  const repoContent = await getRepoContent(context.github, repoInfo);
+  const { content: repoContent, truncated: repoContentTruncated } =
+    await getRepoContent(context.github, repoInfo);
   if (!repoContent) {
     await setProjectStatus(
       context.supabase,
@@ -58,6 +59,22 @@ export const validateGithubRepoAgent: ReviewAgent<GithubRepoInfo> = async (
     `Fetched repository content for project ID ${context.project.id}.`,
   );
   repoInfo.repoContent = repoContent;
+  repoInfo.repoContentTruncated = repoContentTruncated;
+
+  if (repoContentTruncated) {
+    console.warn(
+      `Repository content truncated to fit the model's context window for project ID ${context.project.id}.`,
+    );
+    const { error } = await context.supabase
+      .from("projects")
+      .update({ repo_content_truncated: true })
+      .eq("id", context.project.id);
+    if (error) {
+      console.error("Failed to persist repo_content_truncated flag", error);
+    } else {
+      context.project.repo_content_truncated = true;
+    }
+  }
 
   return { ok: true, data: repoInfo };
 };

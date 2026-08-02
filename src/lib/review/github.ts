@@ -155,10 +155,34 @@ function getGithubStatus(error: unknown) {
   return null;
 }
 
+// Gemini 2.5 Flash (used by the code-review and prize-category agents) has a
+// 1,048,576 token context window. gitingest can return repos large enough to
+// exceed that on their own, before accounting for the rest of the prompt, so
+// cap repo content to a conservative character budget. Assumes ~3 chars per
+// token for source code, which undercounts the real ratio (commonly ~4), so
+// this stays comfortably under the limit even if the estimate runs a bit off.
+const CHARS_PER_TOKEN_ESTIMATE = 3;
+const MAX_REPO_CONTENT_TOKENS = 900_000;
+const MAX_REPO_CONTENT_CHARS =
+  MAX_REPO_CONTENT_TOKENS * CHARS_PER_TOKEN_ESTIMATE;
+
+function truncateRepoContent(content: string): {
+  content: string;
+  truncated: boolean;
+} {
+  if (content.length <= MAX_REPO_CONTENT_CHARS) {
+    return { content, truncated: false };
+  }
+
+  const omittedChars = content.length - MAX_REPO_CONTENT_CHARS;
+  const truncated = `${content.slice(0, MAX_REPO_CONTENT_CHARS)}\n\n[... truncated ${omittedChars.toLocaleString()} characters to fit the model's context window ...]`;
+  return { content: truncated, truncated: true };
+}
+
 export async function getRepoContent(
   _github: Octokit,
   repo: GithubRepoInfo,
-): Promise<string> {
+): Promise<{ content: string; truncated: boolean }> {
   try {
     const response = await fetch("https://gitingest.com/api/ingest", {
       method: "POST",
@@ -176,7 +200,7 @@ export async function getRepoContent(
       console.error(
         `Failed to ingest repository ${repo.owner}/${repo.repo}. Status: ${response.status}`,
       );
-      return "";
+      return { content: "", truncated: false };
     }
 
     const data = (await response.json()) as {
@@ -188,10 +212,11 @@ export async function getRepoContent(
     console.debug(
       `Fetched repository content via gitingest for ${repo.owner}/${repo.repo}. ${data.tree}`,
     );
-    return `# GitHub Repo: ${data.repo_url}\n\n## ${data.tree}\n${data.content}`;
+    const fullContent = `# GitHub Repo: ${data.repo_url}\n\n## ${data.tree}\n${data.content}`;
+    return truncateRepoContent(fullContent);
   } catch (error) {
     console.error("Failed to fetch repository content via gitingest", error);
   }
 
-  return "";
+  return { content: "", truncated: false };
 }

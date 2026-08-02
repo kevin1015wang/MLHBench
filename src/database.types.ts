@@ -139,6 +139,7 @@ export type Database = {
           project_created_at: string | null
           project_processing_status_message: string | null
           project_title: string | null
+          repo_content_truncated: boolean
           standardized_opt_in_prizes: string[]
           status: Database["public"]["Enums"]["project_processing_status"]
           submission_url: string | null
@@ -177,6 +178,7 @@ export type Database = {
           project_created_at?: string | null
           project_processing_status_message?: string | null
           project_title?: string | null
+          repo_content_truncated?: boolean
           standardized_opt_in_prizes?: string[]
           status?: Database["public"]["Enums"]["project_processing_status"]
           submission_url?: string | null
@@ -215,6 +217,7 @@ export type Database = {
           project_created_at?: string | null
           project_processing_status_message?: string | null
           project_title?: string | null
+          repo_content_truncated?: boolean
           standardized_opt_in_prizes?: string[]
           status?: Database["public"]["Enums"]["project_processing_status"]
           submission_url?: string | null

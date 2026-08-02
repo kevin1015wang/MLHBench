@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  AlertTriangle,
   CheckCircle2,
   Code2,
   ExternalLink,
@@ -394,127 +395,21 @@ export function ProjectDetailPane({
 
         <div className="flex-1 overflow-y-auto">
           <div className="px-8 py-6 space-y-4 bg-gray-50/50">
-            {/* Submission Details */}
-            <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm space-y-4">
-              <div className="flex items-center gap-2 text-gray-500">
-                <Info className="w-5 h-5" />
-                <span className="text-sm font-medium">About the Project</span>
-              </div>
-              {project.about_the_project ? (
-                <Markdown className="text-gray-700">
-                  {project.about_the_project}
-                </Markdown>
-              ) : (
-                <p className="text-sm text-gray-500">
-                  No description provided.
-                </p>
-              )}
-
-              {builtWith.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {builtWith.map((tech) => (
-                    <Badge key={tech} variant="secondary">
-                      {tech}
-                    </Badge>
-                  ))}
+            {project.repo_content_truncated && (
+              <div className="flex items-start gap-3 border border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-950/20 rounded-xl p-4">
+                <AlertTriangle className="w-5 h-5 text-orange-500 shrink-0 mt-0.5" />
+                <div className="text-sm text-orange-800 dark:text-orange-300">
+                  <span className="font-semibold">
+                    Repository content truncated.
+                  </span>{" "}
+                  This repo was too large to fit in the AI model's context
+                  window, so the code review and prize analysis below are based
+                  on a truncated view of the code, not the full repository.
                 </div>
-              )}
-
-              {project.notes && (
-                <div className="border-t border-gray-100 pt-3">
-                  <div className="text-xs font-medium text-gray-400 mb-1">
-                    Submitter Notes
-                  </div>
-                  <p className="text-sm text-gray-700">{project.notes}</p>
-                </div>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm space-y-3">
-                <div className="flex items-center gap-2 text-gray-500">
-                  <Users className="w-5 h-5" />
-                  <span className="text-sm font-medium">
-                    Team {project.team_size ? `(${project.team_size})` : ""}
-                  </span>
-                </div>
-                <div className="space-y-1">
-                  {teamMembers.length > 0 ? (
-                    teamMembers.map((member) => (
-                      <div
-                        key={`${member.name}-${member.email ?? ""}`}
-                        className="text-sm text-gray-700"
-                      >
-                        {member.name}
-                        {member.email && (
-                          <span className="text-gray-400">
-                            {" "}
-                            · {member.email}
-                          </span>
-                        )}
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-gray-500">
-                      No team info available.
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm space-y-3">
-                <div className="flex items-center gap-2 text-gray-500">
-                  <Video className="w-5 h-5" />
-                  <span className="text-sm font-medium">Links</span>
-                </div>
-                <div className="space-y-1">
-                  {project.video_demo_link && (
-                    <a
-                      href={project.video_demo_link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-sm text-blue-600 hover:underline"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-                      Video Demo
-                    </a>
-                  )}
-                  {project.try_it_out_links.map((link) => (
-                    <a
-                      key={link}
-                      href={link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-sm text-blue-600 hover:underline break-all"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-                      {link}
-                    </a>
-                  ))}
-                  {!project.video_demo_link &&
-                    project.try_it_out_links.length === 0 && (
-                      <p className="text-sm text-gray-500">
-                        No additional links provided.
-                      </p>
-                    )}
-                </div>
-              </div>
-            </div>
-
-            {project.opt_in_prizes && (
-              <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm space-y-2">
-                <div className="flex items-center gap-2 text-gray-500">
-                  <Gavel className="w-5 h-5" />
-                  <span className="text-sm font-medium">
-                    All Opted-In Prizes
-                  </span>
-                </div>
-                <p className="text-sm text-gray-700">{project.opt_in_prizes}</p>
               </div>
             )}
 
-            {/* Code Review Agent Section */}
-            {/*! Bento Box Stats */}
+            {/* Bento Box Stats */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Technical Complexity */}
               <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm space-y-3">
@@ -714,6 +609,133 @@ export function ProjectDetailPane({
                 </div>
               );
             })()}
+
+            <div className="flex items-center gap-4 pt-4 pb-2">
+              <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
+              <span className="text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                Project Details
+              </span>
+              <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
+            </div>
+
+            {/* Submission Details */}
+            <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm space-y-4">
+              <div className="flex items-center gap-2 text-gray-500">
+                <Info className="w-5 h-5" />
+                <span className="text-sm font-medium">About the Project</span>
+              </div>
+              {project.about_the_project ? (
+                <Markdown className="text-gray-700">
+                  {project.about_the_project}
+                </Markdown>
+              ) : (
+                <p className="text-sm text-gray-500">
+                  No description provided.
+                </p>
+              )}
+
+              {builtWith.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {builtWith.map((tech) => (
+                    <Badge key={tech} variant="secondary">
+                      {tech}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+
+              {project.notes && (
+                <div className="border-t border-gray-100 pt-3">
+                  <div className="text-xs font-medium text-gray-400 mb-1">
+                    Submitter Notes
+                  </div>
+                  <p className="text-sm text-gray-700">{project.notes}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm space-y-3">
+                <div className="flex items-center gap-2 text-gray-500">
+                  <Users className="w-5 h-5" />
+                  <span className="text-sm font-medium">
+                    Team {project.team_size ? `(${project.team_size})` : ""}
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  {teamMembers.length > 0 ? (
+                    teamMembers.map((member) => (
+                      <div
+                        key={`${member.name}-${member.email ?? ""}`}
+                        className="text-sm text-gray-700"
+                      >
+                        {member.name}
+                        {member.email && (
+                          <span className="text-gray-400">
+                            {" "}
+                            · {member.email}
+                          </span>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-gray-500">
+                      No team info available.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm space-y-3">
+                <div className="flex items-center gap-2 text-gray-500">
+                  <Video className="w-5 h-5" />
+                  <span className="text-sm font-medium">Links</span>
+                </div>
+                <div className="space-y-1">
+                  {project.video_demo_link && (
+                    <a
+                      href={project.video_demo_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-sm text-blue-600 hover:underline"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                      Video Demo
+                    </a>
+                  )}
+                  {project.try_it_out_links.map((link) => (
+                    <a
+                      key={link}
+                      href={link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-sm text-blue-600 hover:underline break-all"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                      {link}
+                    </a>
+                  ))}
+                  {!project.video_demo_link &&
+                    project.try_it_out_links.length === 0 && (
+                      <p className="text-sm text-gray-500">
+                        No additional links provided.
+                      </p>
+                    )}
+                </div>
+              </div>
+            </div>
+
+            {project.opt_in_prizes && (
+              <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm space-y-2">
+                <div className="flex items-center gap-2 text-gray-500">
+                  <Gavel className="w-5 h-5" />
+                  <span className="text-sm font-medium">
+                    All Opted-In Prizes
+                  </span>
+                </div>
+                <p className="text-sm text-gray-700">{project.opt_in_prizes}</p>
+              </div>
+            )}
 
             {/* Raw CSV Data */}
             {Object.keys(csvRow).length > 0 && (

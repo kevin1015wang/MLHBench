@@ -40,6 +40,7 @@ export async function markProcessing(
       technical_complexity_message: null,
       tech_stack: [],
       prize_results: pendingPrizeResults,
+      repo_content_truncated: false,
     })
     .eq("id", projectId);
 
@@ -94,6 +95,7 @@ export async function resetAgentAugmentedFields(
       technical_complexity_message: null,
       tech_stack: [],
       prize_results: {},
+      repo_content_truncated: false,
     })
     .eq("id", projectId);
 

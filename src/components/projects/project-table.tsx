@@ -893,6 +893,30 @@ export function ProjectTable({
                   </Tooltip>
                 </TooltipProvider>
               )}
+              {project.repo_content_truncated && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex items-center text-orange-500 ml-0.5">
+                        <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+                        <span className="sr-only">
+                          Repository content truncated
+                        </span>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-72">
+                      <p className="font-semibold">
+                        Repository Content Truncated
+                      </p>
+                      <p>
+                        This repo was too large to fit in the AI model's context
+                        window, so review is based on a truncated view of the
+                        code.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
             </div>
           );
         },

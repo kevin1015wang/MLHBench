@@ -103,6 +103,9 @@ create table projects (
   technical_complexity_message text,
 
   tech_stack text[] not null default '{}',
+  -- True when the gitingest repo content exceeded the review model's context
+  -- window and had to be cut down before the code/prize review agents ran.
+  repo_content_truncated boolean not null default false,
 
   prize_results jsonb not null default '{}'::jsonb
 );

@@ -13,6 +13,7 @@ export type GithubRepoInfo = {
   owner: string;
   repo: string;
   repoContent?: string;
+  repoContentTruncated?: boolean;
 };
 
 export type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
