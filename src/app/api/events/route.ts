@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
+import { slugify } from "@/lib/utils/string-utils";
 
 export async function GET(_req: Request) {
   try {
@@ -35,14 +36,6 @@ export async function GET(_req: Request) {
       { status: 500 },
     );
   }
-}
-
-function slugify(name: string) {
-  return name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
 }
 
 export async function POST(request: Request) {

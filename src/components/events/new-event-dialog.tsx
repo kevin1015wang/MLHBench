@@ -119,7 +119,13 @@ export function NewEventDialog({ open, onOpenChange }: NewEventDialogProps) {
         );
       }
 
-      setEvents([...useStore.getState().events, event]);
+      // The realtime subscription may have already added this event to the
+      // store while the CSV import above was in flight, so guard against
+      // appending a second copy.
+      const currentEvents = useStore.getState().events;
+      if (!currentEvents.some((e) => e.id === event.id)) {
+        setEvents([...currentEvents, event]);
+      }
       reset();
       onOpenChange(false);
       router.push(`/events/${event.id}`);

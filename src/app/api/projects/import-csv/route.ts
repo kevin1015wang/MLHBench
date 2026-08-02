@@ -4,6 +4,7 @@ import Papa from "papaparse";
 import type { Database } from "@/database.types";
 import { getGithubUrls } from "@/lib/github/utils";
 import { createClient } from "@/lib/supabase/server";
+import { slugify } from "@/lib/utils/string-utils";
 
 type ProjectInsert = Database["public"]["Tables"]["projects"]["Insert"];
 type CsvRecord = Record<string, string>;
@@ -255,14 +256,6 @@ function parseList(value: string) {
     .split(/[\n,]+/)
     .map((item) => item.trim())
     .filter(Boolean);
-}
-
-function slugify(text: string) {
-  return text
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
 }
 
 // Devpost's "Opt-In Prizes" column is a comma-separated list of

@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut } from "lucide-react";
+import { Award, LogOut } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BenchLogo } from "@/components/icons/bench-logo";
@@ -140,6 +140,16 @@ export function TopBar({ selectedEvent, selectedProject }: TopBarProps) {
                 )}
               </div>
             </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link
+                href="/prize-categories"
+                className="cursor-pointer flex items-center"
+              >
+                <Award className="mr-2 h-4 w-4 text-current" />
+                Prize Categories
+              </Link>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <Link
