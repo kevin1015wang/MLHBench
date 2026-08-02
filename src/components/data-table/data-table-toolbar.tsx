@@ -699,7 +699,7 @@ export function DataTableToolbar<TData>({
         )}
       </div>
       <div className="flex items-center gap-2">
-        {!isJudgingView && (onRunAll || onRunSelected) && (
+        {(onRunAll || onRunSelected) && (
           <Button
             onClick={handleRunClick}
             variant={runButtonVariant === "default" ? "default" : "outline"}
@@ -711,7 +711,7 @@ export function DataTableToolbar<TData>({
               : "Run All Projects"}
           </Button>
         )}
-        {!isJudgingView && hasFailedProjects && onRerunFailed && (
+        {hasFailedProjects && onRerunFailed && (
           <Button onClick={onRerunFailed} variant="outline" className="gap-2">
             <RefreshCw className="h-4 w-4" />
             Rerun Failed ({failedProjectsCount})

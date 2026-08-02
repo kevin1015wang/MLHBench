@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { DevpostIcon } from "@/components/icons/devpost-icon";
 import { GithubCopilotIcon } from "@/components/icons/github-copilot-icon";
 import { GithubIcon } from "@/components/icons/github-icon";
+import { SaveStatusIndicator } from "@/components/save-status-indicator";
 import {
   Accordion,
   AccordionContent,
@@ -39,6 +40,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useAutoSaveField } from "@/hooks/use-auto-save-field";
 import { usePrizeCategories } from "@/hooks/use-prize-categories";
 import {
   deslugify,
@@ -49,230 +51,113 @@ import {
 import { type Project, useStore } from "@/lib/store";
 import { buildCopilotChatPrompt } from "@/prompts/copilot-chat";
 
-// Shared debounce timers ref (module-level)
-const debounceTimersRef = new Map<
-  string,
-  { timer: NodeJS.Timeout; type: "rating" | "notes" | "table_number" }
->();
+// Persists a single project field: updates the local store immediately, then
+// writes to the database. Used by the auto-save hook for each judging field.
+function saveProjectField<K extends keyof Project>(
+  projectId: string,
+  field: K,
+  updateProject: (id: string, updates: Partial<Project>) => void,
+) {
+  return async (value: Project[K]) => {
+    updateProject(projectId, { [field]: value } as Partial<Project>);
+    const { createClient } = await import("@/lib/supabase/client");
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("projects")
+      .update({ [field]: value })
+      .eq("id", projectId);
+    if (error) throw error;
+  };
+}
 
-// Component for judging score cell with debounced save
+// Component for judging score cell with debounced auto-save
 function JudgingScoreInput({ project }: { readonly project: Project }) {
   const { updateProject } = useStore();
-  const [localValue, setLocalValue] = React.useState(
-    String(project.judging_rating ?? ""),
+  const onSave = React.useMemo(
+    () => saveProjectField(project.id, "judging_rating", updateProject),
+    [project.id, updateProject],
   );
-
-  React.useEffect(() => {
-    setLocalValue(String(project.judging_rating ?? ""));
-  }, [project.judging_rating]);
-
-  const updateProjectRef = React.useRef(updateProject);
-  React.useEffect(() => {
-    updateProjectRef.current = updateProject;
+  const { localValue, status, handleChange, flush } = useAutoSaveField({
+    value: project.judging_rating,
+    onSave,
   });
 
-  // Cleanup timer on unmount
-  React.useEffect(() => {
-    const timerKey = `${project.id}:detail:rating`;
-    return () => {
-      const existing = debounceTimersRef.get(timerKey);
-      if (existing?.type === "rating") {
-        clearTimeout(existing.timer);
-        debounceTimersRef.delete(timerKey);
-      }
-    };
-  }, [project.id]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const inputValue = e.target.value;
-    setLocalValue(inputValue);
-
-    // Clear existing timer using unique key
-    const timerKey = `${project.id}:detail:rating`;
-    const existing = debounceTimersRef.get(timerKey);
-    if (existing?.type === "rating") {
-      clearTimeout(existing.timer);
-    }
-
-    // Calculate the numeric value
-    const numValue =
-      inputValue === ""
-        ? null
-        : Math.max(
-            0,
-            Math.min(10, Math.floor(Number.parseFloat(inputValue) || 0)),
-          );
-
-    // Set debounced save to database (and update store)
-    const timer = setTimeout(async () => {
-      try {
-        // Update store
-        updateProjectRef.current(project.id, { judging_rating: numValue });
-
-        // Save to database
-        const { createClient } = await import("@/lib/supabase/client");
-        const supabase = createClient();
-        await supabase
-          .from("projects")
-          .update({ judging_rating: numValue })
-          .eq("id", project.id);
-      } catch (error) {
-        console.error("Failed to save judging rating:", error);
-      }
-      debounceTimersRef.delete(timerKey);
-    }, 2000);
-
-    debounceTimersRef.set(timerKey, { timer, type: "rating" });
-  };
-
   return (
-    <Input
-      type="number"
-      value={localValue}
-      onChange={handleChange}
-      className="h-9 w-24 text-sm"
-      placeholder="Score"
-      min={0}
-      max={10}
-      step={1}
-    />
+    <div className="flex items-center gap-2">
+      <Input
+        type="number"
+        value={localValue ?? ""}
+        onChange={(e) => {
+          const inputValue = e.target.value;
+          const numValue =
+            inputValue === ""
+              ? null
+              : Math.max(
+                  0,
+                  Math.min(10, Math.floor(Number.parseFloat(inputValue) || 0)),
+                );
+          handleChange(numValue);
+        }}
+        className="h-9 w-24 text-sm"
+        placeholder="Score"
+        min={0}
+        max={10}
+        step={1}
+      />
+      <SaveStatusIndicator status={status} onSave={flush} />
+    </div>
   );
 }
 
-// Component for notes cell with debounced save
+// Component for notes cell with debounced auto-save
 function NotesInput({ project }: { readonly project: Project }) {
   const { updateProject } = useStore();
-  const [localValue, setLocalValue] = React.useState(
-    project.judging_notes ?? "",
+  const onSave = React.useMemo(
+    () => saveProjectField(project.id, "judging_notes", updateProject),
+    [project.id, updateProject],
   );
-
-  React.useEffect(() => {
-    setLocalValue(project.judging_notes ?? "");
-  }, [project.judging_notes]);
-
-  const updateProjectRef = React.useRef(updateProject);
-  React.useEffect(() => {
-    updateProjectRef.current = updateProject;
+  const { localValue, status, handleChange, flush } = useAutoSaveField({
+    value: project.judging_notes ?? "",
+    onSave,
   });
 
-  // Cleanup timer on unmount
-  React.useEffect(() => {
-    const timerKey = `${project.id}:detail:notes`;
-    return () => {
-      const existing = debounceTimersRef.get(timerKey);
-      if (existing?.type === "notes") {
-        clearTimeout(existing.timer);
-        debounceTimersRef.delete(timerKey);
-      }
-    };
-  }, [project.id]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newValue = e.target.value;
-    setLocalValue(newValue);
-
-    // Clear existing timer using unique key
-    const timerKey = `${project.id}:detail:notes`;
-    const existing = debounceTimersRef.get(timerKey);
-    if (existing?.type === "notes") {
-      clearTimeout(existing.timer);
-    }
-
-    // Set debounced save to database (and update store)
-    const timer = setTimeout(async () => {
-      try {
-        // Update store
-        updateProjectRef.current(project.id, { judging_notes: newValue });
-
-        // Save to database
-        const { createClient } = await import("@/lib/supabase/client");
-        const supabase = createClient();
-        await supabase
-          .from("projects")
-          .update({ judging_notes: newValue })
-          .eq("id", project.id);
-      } catch (error) {
-        console.error("Failed to save judging notes:", error);
-      }
-      debounceTimersRef.delete(timerKey);
-    }, 2000);
-
-    debounceTimersRef.set(timerKey, { timer, type: "notes" });
-  };
-
   return (
-    <Textarea
-      value={localValue}
-      onChange={handleChange}
-      className="w-full text-sm min-h-40"
-      placeholder="Notes from the pitch..."
-    />
+    <div className="space-y-2">
+      <Textarea
+        value={localValue}
+        onChange={(e) => handleChange(e.target.value)}
+        className="w-full text-sm min-h-40"
+        placeholder="Notes from the pitch..."
+      />
+      <div className="flex justify-end">
+        <SaveStatusIndicator status={status} onSave={flush} />
+      </div>
+    </div>
   );
 }
 
-// Component for table number input with debounced save
+// Component for table number input with debounced auto-save
 function TableNumberInput({ project }: { readonly project: Project }) {
   const { updateProject } = useStore();
-  const [localValue, setLocalValue] = React.useState(
-    project.table_number ?? "",
+  const onSave = React.useMemo(
+    () => saveProjectField(project.id, "table_number", updateProject),
+    [project.id, updateProject],
   );
-
-  React.useEffect(() => {
-    setLocalValue(project.table_number ?? "");
-  }, [project.table_number]);
-
-  const updateProjectRef = React.useRef(updateProject);
-  React.useEffect(() => {
-    updateProjectRef.current = updateProject;
+  const { localValue, status, handleChange, flush } = useAutoSaveField({
+    value: project.table_number ?? "",
+    onSave,
   });
 
-  React.useEffect(() => {
-    const timerKey = `${project.id}:detail:table_number`;
-    return () => {
-      const existing = debounceTimersRef.get(timerKey);
-      if (existing?.type === "table_number") {
-        clearTimeout(existing.timer);
-        debounceTimersRef.delete(timerKey);
-      }
-    };
-  }, [project.id]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    setLocalValue(newValue);
-
-    const timerKey = `${project.id}:detail:table_number`;
-    const existing = debounceTimersRef.get(timerKey);
-    if (existing?.type === "table_number") {
-      clearTimeout(existing.timer);
-    }
-
-    const timer = setTimeout(async () => {
-      try {
-        updateProjectRef.current(project.id, { table_number: newValue });
-
-        const { createClient } = await import("@/lib/supabase/client");
-        const supabase = createClient();
-        await supabase
-          .from("projects")
-          .update({ table_number: newValue })
-          .eq("id", project.id);
-      } catch (error) {
-        console.error("Failed to save table number:", error);
-      }
-      debounceTimersRef.delete(timerKey);
-    }, 2000);
-
-    debounceTimersRef.set(timerKey, { timer, type: "table_number" });
-  };
-
   return (
-    <Input
-      value={localValue}
-      onChange={handleChange}
-      className="h-8 w-24 text-sm"
-      placeholder="Table #"
-    />
+    <div className="flex items-center gap-2">
+      <Input
+        value={localValue}
+        onChange={(e) => handleChange(e.target.value)}
+        className="h-8 w-24 text-sm"
+        placeholder="Table #"
+      />
+      <SaveStatusIndicator status={status} onSave={flush} />
+    </div>
   );
 }
 
@@ -446,7 +331,11 @@ export function ProjectDetailPane({
               </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-3 shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-gray-400">Table</span>
+                <TableNumberInput project={project} />
+              </div>
               <Button
                 size="sm"
                 onClick={onRerun}
@@ -463,17 +352,9 @@ export function ProjectDetailPane({
         <div className="flex-1 overflow-y-auto">
           <div className="px-8 py-6 space-y-4 bg-gray-50/50">
             <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 text-gray-500">
-                  <Gavel className="w-5 h-5" />
-                  <span className="text-sm font-medium">Judging Notes</span>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-xs font-medium text-gray-400">
-                    Table
-                  </span>
-                  <TableNumberInput project={project} />
-                </div>
+              <div className="flex items-center gap-2 text-gray-500">
+                <Gavel className="w-5 h-5" />
+                <span className="text-sm font-medium">Judging Notes</span>
               </div>
               <NotesInput project={project} />
             </div>

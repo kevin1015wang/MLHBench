@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   ChevronUp,
   Loader2,
-  Maximize2,
   Minus,
   Octagon,
   Play,
@@ -27,15 +26,11 @@ import { DataTableToolbar } from "@/components/data-table/data-table-toolbar";
 import { DevpostIcon } from "@/components/icons/devpost-icon";
 import { GithubIcon } from "@/components/icons/github-icon";
 import { ProcessingModal } from "@/components/processing-modal";
+import { SaveStatusIndicator } from "@/components/save-status-indicator";
 import { StatusBadge } from "@/components/status/status-badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Tooltip,
@@ -43,6 +38,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useAutoSaveField } from "@/hooks/use-auto-save-field";
 import { useDataTable } from "@/hooks/use-data-table";
 import { usePrizeCategories } from "@/hooks/use-prize-categories";
 import { exportProjectsToCSV } from "@/lib/csv-export";
@@ -63,166 +59,87 @@ import type { Project, ProjectProcessingStatus } from "@/lib/store";
 import { useStore } from "@/lib/store";
 import { toTitleCase } from "@/lib/utils/string-utils";
 
-// Shared debounce timers ref (module-level to persist across renders)
-// Key format: `${projectId}:${type}` to support rating/notes/table number for the same project
-const debounceTimersRef = new Map<
-  string,
-  { timer: NodeJS.Timeout; type: "rating" | "notes" | "table_number" }
->();
+// Persists a single project field: updates the local store immediately, then
+// writes to the database. Used by the auto-save hook for each judging field.
+function saveProjectField<K extends keyof Project>(
+  projectId: string,
+  field: K,
+  updateProject: (id: string, updates: Partial<Project>) => void,
+) {
+  return async (value: Project[K]) => {
+    updateProject(projectId, { [field]: value } as Partial<Project>);
+    const { createClient } = await import("@/lib/supabase/client");
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("projects")
+      .update({ [field]: value })
+      .eq("id", projectId);
+    if (error) throw error;
+  };
+}
 
-// Component for judging score cell with debounced save
+// Component for judging score cell with debounced auto-save
 function JudgingScoreCell({ project }: { readonly project: Project }) {
   const { updateProject } = useStore();
-  const [localValue, setLocalValue] = React.useState(
-    String(project.judging_rating ?? ""),
+  const onSave = React.useMemo(
+    () => saveProjectField(project.id, "judging_rating", updateProject),
+    [project.id, updateProject],
   );
-
-  React.useEffect(() => {
-    setLocalValue(String(project.judging_rating ?? ""));
-  }, [project.judging_rating]);
-
-  const updateProjectRef = React.useRef(updateProject);
-  React.useEffect(() => {
-    updateProjectRef.current = updateProject;
+  const { localValue, status, handleChange, flush } = useAutoSaveField({
+    value: project.judging_rating,
+    onSave,
   });
 
-  // Cleanup timer on unmount
-  React.useEffect(() => {
-    const timerKey = `${project.id}:rating`;
-    return () => {
-      const existing = debounceTimersRef.get(timerKey);
-      if (existing?.type === "rating") {
-        clearTimeout(existing.timer);
-        debounceTimersRef.delete(timerKey);
-      }
-    };
-  }, [project.id]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const inputValue = e.target.value;
-    setLocalValue(inputValue);
-
-    // Clear existing timer using unique key
-    const timerKey = `${project.id}:rating`;
-    const existing = debounceTimersRef.get(timerKey);
-    if (existing?.type === "rating") {
-      clearTimeout(existing.timer);
-    }
-
-    // Calculate the numeric value
-    const numValue =
-      inputValue === ""
-        ? null
-        : Math.max(
-            0,
-            Math.min(10, Math.floor(Number.parseFloat(inputValue) || 0)),
-          );
-
-    // Set debounced save to database (and update store)
-    const timer = setTimeout(async () => {
-      try {
-        // Update store
-        updateProjectRef.current(project.id, { judging_rating: numValue });
-
-        // Save to database
-        const { createClient } = await import("@/lib/supabase/client");
-        const supabase = createClient();
-        await supabase
-          .from("projects")
-          .update({ judging_rating: numValue })
-          .eq("id", project.id);
-      } catch (error) {
-        console.error("Failed to save judging rating:", error);
-      }
-      debounceTimersRef.delete(timerKey);
-    }, 2000);
-
-    debounceTimersRef.set(timerKey, { timer, type: "rating" });
-  };
-
   return (
-    <Input
-      type="number"
-      value={localValue}
-      onChange={handleChange}
-      className="h-8 w-20 text-sm"
-      placeholder="—"
-      min={0}
-      max={10}
-      step={1}
-    />
+    <div className="flex items-center gap-1">
+      <Input
+        type="number"
+        value={localValue ?? ""}
+        onChange={(e) => {
+          const inputValue = e.target.value;
+          const numValue =
+            inputValue === ""
+              ? null
+              : Math.max(
+                  0,
+                  Math.min(10, Math.floor(Number.parseFloat(inputValue) || 0)),
+                );
+          handleChange(numValue);
+        }}
+        className="h-8 w-16 text-sm"
+        placeholder="—"
+        min={0}
+        max={10}
+        step={1}
+      />
+      <SaveStatusIndicator
+        status={status}
+        onSave={flush}
+        compact
+        showButton={false}
+      />
+    </div>
   );
 }
 
-// Component for notes cell with debounced save, plus a pop-out editor for
-// writing longer notes without being confined to the table cell.
+// Component for notes cell with debounced auto-save
 function NotesCell({ project }: { readonly project: Project }) {
   const { updateProject } = useStore();
-  const [localValue, setLocalValue] = React.useState(
-    project.judging_notes ?? "",
+  const onSave = React.useMemo(
+    () => saveProjectField(project.id, "judging_notes", updateProject),
+    [project.id, updateProject],
   );
-  const [isExpanded, setIsExpanded] = React.useState(false);
-
-  React.useEffect(() => {
-    setLocalValue(project.judging_notes ?? "");
-  }, [project.judging_notes]);
-
-  const updateProjectRef = React.useRef(updateProject);
-  React.useEffect(() => {
-    updateProjectRef.current = updateProject;
+  const { localValue, status, handleChange, flush } = useAutoSaveField({
+    value: project.judging_notes ?? "",
+    onSave,
   });
 
-  // Cleanup timer on unmount
-  React.useEffect(() => {
-    const timerKey = `${project.id}:notes`;
-    return () => {
-      const existing = debounceTimersRef.get(timerKey);
-      if (existing?.type === "notes") {
-        clearTimeout(existing.timer);
-        debounceTimersRef.delete(timerKey);
-      }
-    };
-  }, [project.id]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newValue = e.target.value;
-    setLocalValue(newValue);
-
-    // Clear existing timer using unique key
-    const timerKey = `${project.id}:notes`;
-    const existing = debounceTimersRef.get(timerKey);
-    if (existing?.type === "notes") {
-      clearTimeout(existing.timer);
-    }
-
-    // Set debounced save to database (and update store)
-    const timer = setTimeout(async () => {
-      try {
-        // Update store
-        updateProjectRef.current(project.id, { judging_notes: newValue });
-
-        // Save to database
-        const { createClient } = await import("@/lib/supabase/client");
-        const supabase = createClient();
-        await supabase
-          .from("projects")
-          .update({ judging_notes: newValue })
-          .eq("id", project.id);
-      } catch (error) {
-        console.error("Failed to save judging notes:", error);
-      }
-      debounceTimersRef.delete(timerKey);
-    }, 2000);
-
-    debounceTimersRef.set(timerKey, { timer, type: "notes" });
-  };
-
   return (
-    <div className="relative w-full max-w-[300px]">
+    <div className="flex items-start gap-1 w-full max-w-[300px]">
       <Textarea
         value={localValue}
-        onChange={handleChange}
-        className="w-full min-h-8 max-h-32 text-sm resize-none pr-7"
+        onChange={(e) => handleChange(e.target.value)}
+        className="w-full min-h-8 max-h-32 text-sm resize-none"
         placeholder="Add notes..."
         rows={1}
         style={{
@@ -235,109 +152,44 @@ function NotesCell({ project }: { readonly project: Project }) {
           target.style.height = `${Math.min(target.scrollHeight, 128)}px`;
         }}
       />
-      <Popover open={isExpanded} onOpenChange={setIsExpanded}>
-        <PopoverTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="absolute top-1 right-1 h-6 w-6 text-muted-foreground hover:text-foreground"
-            aria-label="Expand notes"
-          >
-            <Maximize2 className="h-3.5 w-3.5" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent
-          className="w-96 p-3"
-          align="end"
-          onOpenAutoFocus={(e) => {
-            // Let the textarea take focus instead of the popover container
-            e.preventDefault();
-            (e.target as HTMLElement)
-              .querySelector("textarea")
-              ?.focus({ preventScroll: true });
-          }}
-        >
-          <Textarea
-            value={localValue}
-            onChange={handleChange}
-            className="w-full min-h-64 text-sm resize-y"
-            placeholder="Add notes..."
-          />
-        </PopoverContent>
-      </Popover>
+      <SaveStatusIndicator
+        status={status}
+        onSave={flush}
+        compact
+        showButton={false}
+        className="mt-2 shrink-0"
+      />
     </div>
   );
 }
 
-// Component for table number cell with debounced save
+// Component for table number cell with debounced auto-save
 function TableNumberCell({ project }: { readonly project: Project }) {
   const { updateProject } = useStore();
-  const [localValue, setLocalValue] = React.useState(
-    project.table_number ?? "",
+  const onSave = React.useMemo(
+    () => saveProjectField(project.id, "table_number", updateProject),
+    [project.id, updateProject],
   );
-
-  React.useEffect(() => {
-    setLocalValue(project.table_number ?? "");
-  }, [project.table_number]);
-
-  const updateProjectRef = React.useRef(updateProject);
-  React.useEffect(() => {
-    updateProjectRef.current = updateProject;
+  const { localValue, status, handleChange, flush } = useAutoSaveField({
+    value: project.table_number ?? "",
+    onSave,
   });
 
-  // Cleanup timer on unmount
-  React.useEffect(() => {
-    const timerKey = `${project.id}:table_number`;
-    return () => {
-      const existing = debounceTimersRef.get(timerKey);
-      if (existing?.type === "table_number") {
-        clearTimeout(existing.timer);
-        debounceTimersRef.delete(timerKey);
-      }
-    };
-  }, [project.id]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    setLocalValue(newValue);
-
-    // Clear existing timer using unique key
-    const timerKey = `${project.id}:table_number`;
-    const existing = debounceTimersRef.get(timerKey);
-    if (existing?.type === "table_number") {
-      clearTimeout(existing.timer);
-    }
-
-    // Set debounced save to database (and update store)
-    const timer = setTimeout(async () => {
-      try {
-        // Update store
-        updateProjectRef.current(project.id, { table_number: newValue });
-
-        // Save to database
-        const { createClient } = await import("@/lib/supabase/client");
-        const supabase = createClient();
-        await supabase
-          .from("projects")
-          .update({ table_number: newValue })
-          .eq("id", project.id);
-      } catch (error) {
-        console.error("Failed to save table number:", error);
-      }
-      debounceTimersRef.delete(timerKey);
-    }, 2000);
-
-    debounceTimersRef.set(timerKey, { timer, type: "table_number" });
-  };
-
   return (
-    <Input
-      value={localValue}
-      onChange={handleChange}
-      className="h-8 w-20 text-sm"
-      placeholder="—"
-    />
+    <div className="flex items-center gap-1">
+      <Input
+        value={localValue}
+        onChange={(e) => handleChange(e.target.value)}
+        className="h-8 w-16 text-sm"
+        placeholder="—"
+      />
+      <SaveStatusIndicator
+        status={status}
+        onSave={flush}
+        compact
+        showButton={false}
+      />
+    </div>
   );
 }
 
@@ -706,8 +558,8 @@ export function ProjectTable({
   // Filter data client-side based on URL state
   const filteredData = React.useMemo(() => {
     return projects.filter((project) => {
-      // In judging view, only show favorited projects
-      if (isJudgingView && !favoriteProjects.includes(project.id)) {
+      // In judging view, only show projects with at least one MLH prize track
+      if (isJudgingView && getPrizeTracks(project).length === 0) {
         return false;
       }
 
@@ -769,7 +621,6 @@ export function ProjectTable({
   }, [
     projects,
     isJudgingView,
-    favoriteProjects,
     title,
     status,
     complexity,
@@ -1350,25 +1201,32 @@ export function ProjectTable({
     duplicateNameInfoById.get,
   ]);
 
-  // Merge persisted column visibility with default visibility
+  // Merge persisted column visibility with default visibility.
+  // Judging view is a fixed preset: Table, Status, Project, Links, MLH Prize
+  // Tracks, and Notes only. Everything else (select, favorite, score,
+  // complexity/accuracy, actions) is only shown in the regular table view.
   const initialColumnVisibility = React.useMemo(() => {
     const defaultVisibility: Record<string, boolean> = {
-      judging_score: isJudgingView,
+      select: !isJudgingView,
+      favorite: !isJudgingView,
+      judging_score: false,
+      table_number: true,
+      status: true,
+      project_title: true,
+      links: true,
+      technical_complexity: !isJudgingView,
+      description_accuracy: !isJudgingView,
+      prize_tracks: true,
       notes: isJudgingView,
-      status: !isJudgingView,
       actions: !isJudgingView,
     };
 
     // Merge with persisted visibility, but respect judging view defaults
     if (persistedState.columnVisibility) {
       return {
-        ...defaultVisibility,
         ...persistedState.columnVisibility,
         // Always respect judging view defaults for these columns
-        judging_score: isJudgingView,
-        notes: isJudgingView,
-        status: !isJudgingView,
-        actions: !isJudgingView,
+        ...defaultVisibility,
       };
     }
 
@@ -1396,10 +1254,18 @@ export function ProjectTable({
 
   // Update column visibility when judging view changes
   React.useEffect(() => {
-    table.getColumn("status")?.toggleVisibility(!isJudgingView);
-    table.getColumn("actions")?.toggleVisibility(!isJudgingView);
-    table.getColumn("judging_score")?.toggleVisibility(isJudgingView);
+    table.getColumn("select")?.toggleVisibility(!isJudgingView);
+    table.getColumn("favorite")?.toggleVisibility(!isJudgingView);
+    table.getColumn("judging_score")?.toggleVisibility(false);
+    table.getColumn("table_number")?.toggleVisibility(true);
+    table.getColumn("status")?.toggleVisibility(true);
+    table.getColumn("project_title")?.toggleVisibility(true);
+    table.getColumn("links")?.toggleVisibility(true);
+    table.getColumn("technical_complexity")?.toggleVisibility(!isJudgingView);
+    table.getColumn("description_accuracy")?.toggleVisibility(!isJudgingView);
+    table.getColumn("prize_tracks")?.toggleVisibility(true);
     table.getColumn("notes")?.toggleVisibility(isJudgingView);
+    table.getColumn("actions")?.toggleVisibility(!isJudgingView);
   }, [isJudgingView, table]);
 
   // Track the last eventId we restored column visibility for
@@ -1563,9 +1429,9 @@ export function ProjectTable({
         >
           <DataTableToolbar
             table={table}
-            onRunAll={isJudgingView ? undefined : handleRunAll}
-            onRunSelected={isJudgingView ? undefined : (ids) => onBatchRun(ids)}
-            onRerunFailed={isJudgingView ? undefined : handleRerunFailed}
+            onRunAll={handleRunAll}
+            onRunSelected={(ids) => onBatchRun(ids)}
+            onRerunFailed={handleRerunFailed}
             onImport={isJudgingView ? handleExportCSV : onImport}
             isJudgingView={isJudgingView}
             onJudgingViewChange={setIsJudgingView}
