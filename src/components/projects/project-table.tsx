@@ -4,11 +4,7 @@ import type { Column, ColumnDef } from "@tanstack/react-table";
 import {
   AlertCircle,
   AlertTriangle,
-  CheckCircle2,
   ChevronUp,
-  Loader2,
-  Minus,
-  Octagon,
   Play,
   Star,
 } from "lucide-react";
@@ -28,6 +24,7 @@ import { GithubIcon } from "@/components/icons/github-icon";
 import { ProcessingModal } from "@/components/processing-modal";
 import { SaveStatusIndicator } from "@/components/save-status-indicator";
 import { StatusBadge } from "@/components/status/status-badge";
+import { StatusIcon } from "@/components/status/status-icon";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -759,35 +756,7 @@ export function ProjectTable({
           const tooltipTitle =
             status === "processed" ? undefined : getStatusLabel(status);
 
-          let icon: React.ReactNode;
-          if (status === "processed") {
-            icon = (
-              <CheckCircle2
-                className={`text-green-600 dark:text-green-400 h-5! w-5!`}
-              />
-            );
-          } else if (status.startsWith("processing:")) {
-            icon = (
-              <Loader2
-                className={`text-blue-600 dark:text-blue-400 animate-spin h-5! w-5!`}
-              />
-            );
-          } else if (status.startsWith("invalid:")) {
-            icon = (
-              <AlertTriangle
-                className={`text-amber-600 dark:text-amber-400 h-5! w-5!`}
-              />
-            );
-          } else if (status === "errored") {
-            icon = (
-              <Octagon className={`text-red-600 dark:text-red-400 h-5! w-5!`} />
-            );
-          } else {
-            // unprocessed
-            icon = (
-              <Minus className={`text-gray-500 dark:text-gray-400 h-5! w-5!`} />
-            );
-          }
+          const icon = <StatusIcon status={status} className="h-5! w-5!" />;
 
           const iconWrapper = (
             <div className="flex items-center justify-center w-5 h-5">

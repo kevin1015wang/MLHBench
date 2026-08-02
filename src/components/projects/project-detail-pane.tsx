@@ -22,6 +22,8 @@ import { DevpostIcon } from "@/components/icons/devpost-icon";
 import { GithubCopilotIcon } from "@/components/icons/github-copilot-icon";
 import { GithubIcon } from "@/components/icons/github-icon";
 import { SaveStatusIndicator } from "@/components/save-status-indicator";
+import { StatusBadge } from "@/components/status/status-badge";
+import { StatusIcon } from "@/components/status/status-icon";
 import {
   Accordion,
   AccordionContent,
@@ -46,6 +48,8 @@ import {
   deslugify,
   getPrizeStatusDisplay,
   getPrizeTracks,
+  getStatusLabel,
+  getStatusTooltipMessage,
   parsePrizeResults,
 } from "@/lib/project-utils";
 import { type Project, useStore } from "@/lib/store";
@@ -304,6 +308,21 @@ export function ProjectDetailPane({
                 <SheetTitle className="text-4xl font-bold text-gray-900 font-headline wrap-break-word leading-tight">
                   {project.project_title}
                 </SheetTitle>
+                {project.status === "processed" ? (
+                  <StatusIcon status={project.status} className="h-6! w-6!" />
+                ) : (
+                  <StatusBadge
+                    kind="project"
+                    status={project.status}
+                    tooltipTitle={getStatusLabel(project.status)}
+                    tooltip={getStatusTooltipMessage(project)}
+                    showInfoIcon={false}
+                    noRounded
+                    className="border-0 bg-transparent p-0 flex items-center justify-center shrink-0"
+                  >
+                    <StatusIcon status={project.status} className="h-6! w-6!" />
+                  </StatusBadge>
+                )}
                 <div className="flex items-center gap-2 shrink-0">
                   {project.github_url && (
                     <a
