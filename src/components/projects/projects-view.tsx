@@ -1,30 +1,19 @@
 "use client";
 
-import { ArrowRight, Calendar, Folder } from "lucide-react";
+import { ArrowRight, Calendar, Folder, Pencil } from "lucide-react";
 import Image from "next/image";
 import * as React from "react";
 import { useState } from "react";
+import { EditEventDialog } from "@/components/events/edit-event-dialog";
 import { ProjectTable } from "@/components/projects/project-table";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { Project } from "@/lib/store";
+import type { Event, Project } from "@/lib/store";
 import { useStore } from "@/lib/store";
 
 interface ProjectsViewProps {
@@ -45,10 +34,7 @@ export function ProjectsView({
   const { projects, selectedEventId, events, updateEvent, favoriteProjects } =
     useStore();
   const [isJudgingView, setIsJudgingView] = React.useState(false);
-  const [isDateDialogOpen, setIsDateDialogOpen] = useState(false);
-  const [localStartTime, setLocalStartTime] = useState("");
-  const [localEndTime, setLocalEndTime] = useState("");
-  const [localJudgingEndTime, setLocalJudgingEndTime] = useState("");
+  const [editingEvent, setEditingEvent] = useState<Event | null>(null);
 
   const activeEventId = eventId ?? selectedEventId ?? null;
 
@@ -87,81 +73,14 @@ export function ProjectsView({
     };
   };
 
-  // Format for datetime-local input (memoized for performance)
-  const formatForInputMemo = React.useCallback(
-    (dateString: string | null | undefined) => {
-      if (!dateString) return "";
-      const date = new Date(dateString);
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const day = String(date.getDate()).padStart(2, "0");
-      const hours = String(date.getHours()).padStart(2, "0");
-      const minutes = String(date.getMinutes()).padStart(2, "0");
-      return `${year}-${month}-${day}T${hours}:${minutes}`;
-    },
-    [],
-  );
-
-  const handleOpenDateDialog = React.useCallback(() => {
-    if (activeEvent) {
-      setLocalStartTime(formatForInputMemo(activeEvent.starts_at));
-      setLocalEndTime(formatForInputMemo(activeEvent.ends_at));
-      setLocalJudgingEndTime(
-        formatForInputMemo(
-          (activeEvent as { judging_ends_at?: string | null }).judging_ends_at,
-        ),
-      );
-      setIsDateDialogOpen(true);
-    }
-  }, [activeEvent, formatForInputMemo]);
-
-  const handleSaveDates = async () => {
-    if (activeEvent) {
-      const updates: {
-        starts_at?: string | null;
-        ends_at?: string | null;
-        judging_ends_at?: string | null;
-      } = {};
-      // Always include starts_at and ends_at, even if empty (set to null)
-      if (localStartTime) {
-        updates.starts_at = new Date(localStartTime).toISOString();
-      } else {
-        updates.starts_at = null;
-      }
-      if (localEndTime) {
-        updates.ends_at = new Date(localEndTime).toISOString();
-      } else {
-        updates.ends_at = null;
-      }
-      // Judging end time handling (already has explicit null)
-      if (localJudgingEndTime) {
-        updates.judging_ends_at = new Date(localJudgingEndTime).toISOString();
-      } else {
-        updates.judging_ends_at = null;
-      }
-
-      // Update local store
-      updateEvent(activeEvent.id, updates);
-
-      // Write to database
-      try {
-        const { createClient } = await import("@/lib/supabase/client");
-        const supabase = createClient();
-        const { error } = await supabase
-          .from("events")
-          .update(updates)
-          .eq("id", activeEvent.id);
-
-        if (error) {
-          console.error("Failed to save hackathon dates:", error);
-          // Optionally show an error notification to the user
-        }
-      } catch (error) {
-        console.error("Failed to save hackathon dates:", error);
-      }
-
-      setIsDateDialogOpen(false);
-    }
+  // Format a single date for display (e.g. the judging-end date fallback)
+  const formatSingleDate = (dateString: string | null | undefined) => {
+    if (!dateString) return null;
+    return new Date(dateString).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
   };
 
   const startDateTime = formatDateTime(activeEvent?.starts_at);
@@ -196,9 +115,9 @@ export function ProjectsView({
     const now = currentTime;
     const start = new Date(activeEvent.starts_at);
     const end = new Date(activeEvent.ends_at);
-    const judgingEndTime = (activeEvent as { judging_ends_at?: string | null })
-      .judging_ends_at;
-    const judgingEnd = judgingEndTime ? new Date(judgingEndTime) : null;
+    const judgingEnd = activeEvent.judging_ends_at
+      ? new Date(activeEvent.judging_ends_at)
+      : null;
 
     if (now < start) {
       // Hackathon hasn't started
@@ -290,80 +209,25 @@ export function ProjectsView({
               {projectsTitle}
             </h2>
             <div className="flex items-center gap-2 mt-2">
-              {/* Hackathon Date & Time Badge */}
-              {startDateTime && endDateTime && (
-                <Dialog
-                  open={isDateDialogOpen}
-                  onOpenChange={setIsDateDialogOpen}
-                >
-                  <DialogTrigger asChild>
-                    <Badge
-                      variant="outline"
-                      className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                      onClick={handleOpenDateDialog}
-                    >
-                      <Calendar className="w-3 h-3 mr-1" />
-                      <span>
-                        {startDateTime.date} {startDateTime.time}
-                      </span>
-                      <ArrowRight className="w-3 h-3 mx-1" />
-                      <span>
-                        {endDateTime.date} {endDateTime.time}
-                      </span>
-                    </Badge>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Edit Hackathon Dates & Times</DialogTitle>
-                      <DialogDescription>
-                        Set the start and end times for the hackathon, and
-                        optionally set a judging period end time.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="start-time">Hackathon Start</Label>
-                        <Input
-                          id="start-time"
-                          type="datetime-local"
-                          value={localStartTime}
-                          onChange={(e) => setLocalStartTime(e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="end-time">Hackathon End</Label>
-                        <Input
-                          id="end-time"
-                          type="datetime-local"
-                          value={localEndTime}
-                          onChange={(e) => setLocalEndTime(e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="judging-end-time">
-                          Judging End (Optional)
-                        </Label>
-                        <Input
-                          id="judging-end-time"
-                          type="datetime-local"
-                          value={localJudgingEndTime}
-                          onChange={(e) =>
-                            setLocalJudgingEndTime(e.target.value)
-                          }
-                        />
-                      </div>
-                    </div>
-                    <DialogFooter>
-                      <Button
-                        variant="outline"
-                        onClick={() => setIsDateDialogOpen(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button onClick={handleSaveDates}>Save</Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
+              {/* Hackathon Date & Time Badge; falls back to the single
+                  judging-end date for events without start/end set */}
+              {startDateTime && endDateTime ? (
+                <Badge variant="outline">
+                  <span>
+                    {startDateTime.date} {startDateTime.time}
+                  </span>
+                  <ArrowRight className="w-3 h-3 mx-1" />
+                  <span>
+                    {endDateTime.date} {endDateTime.time}
+                  </span>
+                </Badge>
+              ) : (
+                formatSingleDate(activeEvent?.judging_ends_at) && (
+                  <Badge variant="outline">
+                    <Calendar className="w-3 h-3 mr-1" />
+                    {formatSingleDate(activeEvent?.judging_ends_at)}
+                  </Badge>
+                )
               )}
 
               {/* Number of Submissions Badge */}
@@ -371,6 +235,18 @@ export function ProjectsView({
                 <Folder className="w-3 h-3 mr-1" />
                 {filteredProjects.length}
               </Badge>
+
+              {/* Edit Event Details */}
+              {activeEvent && (
+                <Badge
+                  variant="outline"
+                  className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  onClick={() => setEditingEvent(activeEvent)}
+                >
+                  <Pencil className="w-3 h-3 mr-1" />
+                  Edit Event
+                </Badge>
+              )}
             </div>
           </div>
         </div>
@@ -459,6 +335,17 @@ export function ProjectsView({
           eventId={activeEventId}
         />
       </div>
+
+      <EditEventDialog
+        event={editingEvent}
+        onOpenChange={(open) => {
+          if (!open) setEditingEvent(null);
+        }}
+        onSaved={(updated) => {
+          updateEvent(updated.id, updated);
+          setEditingEvent(null);
+        }}
+      />
     </div>
   );
 }

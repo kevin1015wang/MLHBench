@@ -51,6 +51,10 @@ export async function POST(request: Request) {
     const startsAt =
       typeof body?.starts_at === "string" ? body.starts_at : null;
     const endsAt = typeof body?.ends_at === "string" ? body.ends_at : null;
+    const logoUrl =
+      typeof body?.logo_url === "string" ? body.logo_url.trim() : "";
+    const judgingEndsAt =
+      typeof body?.judging_ends_at === "string" ? body.judging_ends_at : null;
 
     if (!name) {
       return NextResponse.json({ error: "name is required" }, { status: 400 });
@@ -95,6 +99,8 @@ export async function POST(request: Request) {
         status: "active",
         starts_at: startsAt,
         ends_at: endsAt,
+        logo_url: logoUrl || null,
+        judging_ends_at: judgingEndsAt,
       })
       .select()
       .single();

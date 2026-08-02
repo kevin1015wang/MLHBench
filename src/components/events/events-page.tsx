@@ -5,6 +5,7 @@ import {
   Folder,
   ImageOff,
   MapPin,
+  Pencil,
   Search,
   Trash2,
 } from "lucide-react";
@@ -24,6 +25,7 @@ import {
 import { useDashboardData } from "@/hooks/use-dashboard-data";
 import { type Event, useStore } from "@/lib/store";
 import { DeleteEventDialog } from "./delete-event-dialog";
+import { EditEventDialog } from "./edit-event-dialog";
 import { NewEventDialog } from "./new-event-dialog";
 
 type EventStatus = {
@@ -75,6 +77,35 @@ function getEventStatus(
   };
 }
 
+// Prefers the start/end range when both are set; otherwise falls back to the
+// single judging-end date, since new events typically only have that set.
+function formatEventDateDisplay(event: Event): string | null {
+  if (event.starts_at && event.ends_at) {
+    const start = new Date(event.starts_at);
+    const end = new Date(event.ends_at);
+    const startMonth = start.toLocaleDateString("en-US", { month: "short" });
+    const endMonth = end.toLocaleDateString("en-US", { month: "short" });
+    const startDay = start.getDate();
+    const endDay = end.getDate();
+    const year = start.getFullYear();
+
+    if (startMonth === endMonth) {
+      return `${startMonth} ${startDay} - ${endDay}, ${year}`;
+    }
+    return `${startMonth} ${startDay} - ${endMonth} ${endDay}, ${year}`;
+  }
+
+  if (event.judging_ends_at) {
+    return new Date(event.judging_ends_at).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  }
+
+  return null;
+}
+
 function EventImage({
   logoUrl,
   eventName,
@@ -109,6 +140,7 @@ export function EventsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
+  const [editingEvent, setEditingEvent] = useState<Event | null>(null);
 
   // Fetch events and related dashboard data
   useDashboardData(null);
@@ -120,6 +152,10 @@ export function EventsPage() {
   const handleEventDeleted = (eventId: string) => {
     setEvents(events.filter((e) => e.id !== eventId));
     setProjects(projects.filter((p) => p.event_id !== eventId));
+  };
+
+  const handleEventSaved = (updated: Event) => {
+    setEvents(events.map((e) => (e.id === updated.id ? updated : e)));
   };
 
   const eventsWithStatus = events
@@ -186,6 +222,14 @@ export function EventsPage() {
           if (!open) setEventToDelete(null);
         }}
         onDeleted={handleEventDeleted}
+      />
+
+      <EditEventDialog
+        event={editingEvent}
+        onOpenChange={(open) => {
+          if (!open) setEditingEvent(null);
+        }}
+        onSaved={handleEventSaved}
       />
 
       <div className="flex gap-4">
@@ -260,6 +304,18 @@ export function EventsPage() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          className="h-7 w-7 text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:text-gray-200 dark:hover:bg-gray-800"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setEditingEvent(event);
+                          }}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           className="h-7 w-7 text-gray-400 hover:text-destructive hover:bg-destructive/10"
                           onClick={(e) => {
                             e.preventDefault();
@@ -272,31 +328,11 @@ export function EventsPage() {
                       </div>
                     </div>
 
-                    {event.starts_at && event.ends_at && (
+                    {formatEventDateDisplay(event) && (
                       <div className="flex items-center gap-2 text-sm text-gray-600">
                         <Calendar className="w-4 h-4 shrink-0" />
                         <span className="min-w-0 flex-1 truncate">
-                          {(() => {
-                            const start = new Date(event.starts_at);
-                            const end = new Date(event.ends_at);
-                            const startMonth = start.toLocaleDateString(
-                              "en-US",
-                              {
-                                month: "short",
-                              },
-                            );
-                            const endMonth = end.toLocaleDateString("en-US", {
-                              month: "short",
-                            });
-                            const startDay = start.getDate();
-                            const endDay = end.getDate();
-                            const year = start.getFullYear();
-
-                            if (startMonth === endMonth) {
-                              return `${startMonth} ${startDay} - ${endDay}, ${year}`;
-                            }
-                            return `${startMonth} ${startDay} - ${endMonth} ${endDay}, ${year}`;
-                          })()}
+                          {formatEventDateDisplay(event)}
                         </span>
                       </div>
                     )}
@@ -395,6 +431,18 @@ export function EventsPage() {
                             <Button
                               variant="ghost"
                               size="icon"
+                              className="h-7 w-7 text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:text-gray-200 dark:hover:bg-gray-800"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setEditingEvent(event);
+                              }}
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               className="h-7 w-7 text-gray-400 hover:text-destructive hover:bg-destructive/10"
                               onClick={(e) => {
                                 e.preventDefault();
@@ -407,37 +455,14 @@ export function EventsPage() {
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <Calendar className="w-4 h-4 shrink-0" />
-                          <span className="min-w-0 flex-1 truncate">
-                            {event.starts_at && event.ends_at
-                              ? (() => {
-                                  const start = new Date(event.starts_at);
-                                  const end = new Date(event.ends_at);
-                                  const startMonth = start.toLocaleDateString(
-                                    "en-US",
-                                    {
-                                      month: "short",
-                                    },
-                                  );
-                                  const endMonth = end.toLocaleDateString(
-                                    "en-US",
-                                    {
-                                      month: "short",
-                                    },
-                                  );
-                                  const startDay = start.getDate();
-                                  const endDay = end.getDate();
-                                  const year = start.getFullYear();
-
-                                  if (startMonth === endMonth) {
-                                    return `${startMonth} ${startDay} - ${endDay}, ${year}`;
-                                  }
-                                  return `${startMonth} ${startDay} - ${endMonth} ${endDay}, ${year}`;
-                                })()
-                              : ""}
-                          </span>
-                        </div>
+                        {formatEventDateDisplay(event) && (
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <Calendar className="w-4 h-4 shrink-0" />
+                            <span className="min-w-0 flex-1 truncate">
+                              {formatEventDateDisplay(event)}
+                            </span>
+                          </div>
+                        )}
 
                         <div className="flex items-center justify-between gap-3 text-sm text-gray-600">
                           {event.city || event.state || event.country ? (

@@ -25,6 +25,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { type Event, useStore } from "@/lib/store";
+import { uploadEventImage } from "@/lib/upload-event-image";
 
 interface NewEventDialogProps {
   readonly open: boolean;
@@ -53,12 +54,16 @@ export function NewEventDialog({ open, onOpenChange }: NewEventDialogProps) {
 
   const [files, setFiles] = useState<File[]>([]);
   const [name, setName] = useState("");
+  const [logoFiles, setLogoFiles] = useState<File[]>([]);
+  const [judgingEndTime, setJudgingEndTime] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const reset = useCallback(() => {
     setFiles([]);
     setName("");
+    setLogoFiles([]);
+    setJudgingEndTime("");
     setError(null);
   }, []);
 
@@ -68,6 +73,16 @@ export function NewEventDialog({ open, onOpenChange }: NewEventDialogProps) {
     }
     if (file.size > 10 * 1024 * 1024) {
       return "File must be smaller than 10MB";
+    }
+    return null;
+  };
+
+  const handleLogoFileValidate = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      return "Only image files are allowed";
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      return "Image must be smaller than 5MB";
     }
     return null;
   };
@@ -89,10 +104,27 @@ export function NewEventDialog({ open, onOpenChange }: NewEventDialogProps) {
     setError(null);
 
     try {
+      let logoUrl: string | undefined;
+      if (logoFiles.length > 0) {
+        try {
+          logoUrl = await uploadEventImage(logoFiles[0]);
+        } catch (uploadError) {
+          console.error("Failed to upload event image:", uploadError);
+          throw new Error("Failed to upload event image");
+        }
+      }
+
       const eventResponse = await fetch("/api/events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim() }),
+        body: JSON.stringify({
+          name: name.trim(),
+          logo_url: logoUrl,
+          // Treat the date as ending at the end of that day, in local time.
+          judging_ends_at: judgingEndTime
+            ? new Date(`${judgingEndTime}T23:59:59`).toISOString()
+            : undefined,
+        }),
       });
 
       if (!eventResponse.ok) {
@@ -208,6 +240,74 @@ export function NewEventDialog({ open, onOpenChange }: NewEventDialogProps) {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Hack the Valley Hack Day"
+              disabled={isSubmitting}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>
+              Event Image
+              <span className="text-xs font-normal text-muted-foreground ml-2">
+                Optional
+              </span>
+            </Label>
+            <FileUpload
+              value={logoFiles}
+              onValueChange={setLogoFiles}
+              accept="image/*"
+              maxFiles={1}
+              maxSize={5 * 1024 * 1024}
+              onFileValidate={handleLogoFileValidate}
+              disabled={isSubmitting}
+            >
+              <FileUploadDropzone className="border-2 border-dashed rounded-lg p-4 text-center hover:bg-accent/50 transition-colors">
+                <div className="space-y-1">
+                  <div className="text-sm font-medium text-foreground">
+                    Drag an image here
+                  </div>
+                  <div className="text-xs text-muted-foreground">or</div>
+                  <FileUploadTrigger asChild>
+                    <Button variant="outline" size="sm" type="button">
+                      Choose Image
+                    </Button>
+                  </FileUploadTrigger>
+                </div>
+              </FileUploadDropzone>
+
+              <FileUploadList className="space-y-2">
+                <FileUploadItem
+                  value={logoFiles[0]}
+                  className="flex items-center gap-3 p-3 border rounded-md bg-accent/30"
+                >
+                  <FileUploadItemPreview className="shrink-0" />
+                  <FileUploadItemMetadata className="flex-1 min-w-0 overflow-hidden" />
+                  <FileUploadItemDelete asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="shrink-0"
+                      type="button"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </FileUploadItemDelete>
+                </FileUploadItem>
+              </FileUploadList>
+            </FileUpload>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="new-event-judging-end">
+              Date
+              <span className="text-xs font-normal text-muted-foreground ml-2">
+                Optional
+              </span>
+            </Label>
+            <Input
+              id="new-event-judging-end"
+              type="date"
+              value={judgingEndTime}
+              onChange={(e) => setJudgingEndTime(e.target.value)}
               disabled={isSubmitting}
             />
           </div>
