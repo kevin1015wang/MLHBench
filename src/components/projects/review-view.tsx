@@ -1,12 +1,11 @@
 "use client";
 
 import {
-  closestCorners,
+  closestCenter,
   DndContext,
   type DragEndEvent,
   KeyboardSensor,
   PointerSensor,
-  useDroppable,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
@@ -18,10 +17,17 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronDown, GripVertical, Star } from "lucide-react";
+import { AlertTriangle, ChevronDown, GripVertical, Star } from "lucide-react";
 import * as React from "react";
 import { Badge } from "@/components/ui/badge";
-import { getPrizeTracks } from "@/lib/project-utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { usePrizeCategories } from "@/hooks/use-prize-categories";
+import { deslugify, getPrizeTracks } from "@/lib/project-utils";
 import { saveProjectRankings } from "@/lib/save-project-rankings";
 import type { PrizeCategory, Project, ProjectRanking } from "@/lib/store";
 import { useStore } from "@/lib/store";
@@ -33,16 +39,21 @@ interface ReviewViewProps {
   readonly onProjectClick: (project: Project) => void;
 }
 
-type ContainerId = "ranked" | "unranked";
+// Sentinel row separating ranked from unranked projects within a single
+// sortable list -- see CategoryColumn for why this replaced two separate
+// drag-and-drop containers.
+const DIVIDER_ID = "__unranked_divider__";
 
 function RankableRow({
   project,
   rank,
   onProjectClick,
+  isMultiFirst,
 }: {
   readonly project: Project;
   readonly rank?: number;
   readonly onProjectClick: (project: Project) => void;
+  readonly isMultiFirst: boolean;
 }) {
   const {
     attributes,
@@ -61,6 +72,11 @@ function RankableRow({
   const [notesExpanded, setNotesExpanded] = React.useState(false);
   const [notesOverflowing, setNotesOverflowing] = React.useState(false);
   const notesRef = React.useRef<HTMLParagraphElement>(null);
+  const toggleFavoriteProject = useStore(
+    (state) => state.toggleFavoriteProject,
+  );
+  const { prizeCategoryMap } = usePrizeCategories();
+  const prizeTracks = getPrizeTracks(project);
 
   // Measured once against the clamped (2-line) layout, so it reflects
   // whether there's actually more text to reveal -- not re-measured after
@@ -75,8 +91,8 @@ function RankableRow({
     <div
       ref={setNodeRef}
       style={style}
-      className={`rounded-lg border border-gray-200 dark:border-[#404040] bg-white dark:bg-[#1f1f1f] p-3 shadow-sm transition-all hover:border-gray-300 hover:shadow-md dark:hover:border-gray-600 ${
-        isDragging ? "opacity-50" : ""
+      className={`relative rounded-lg border border-gray-200 dark:border-[#404040] bg-white dark:bg-[#1f1f1f] p-3 shadow-sm transition-all hover:border-gray-300 hover:shadow-md dark:hover:border-gray-600 ${
+        isDragging ? "z-50 opacity-50" : ""
       }`}
     >
       <div className="flex items-center gap-3">
@@ -93,6 +109,18 @@ function RankableRow({
             #{rank}
           </Badge>
         )}
+        {rank === 1 && isMultiFirst && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <AlertTriangle className="w-4 h-4 shrink-0 text-amber-500" />
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Also ranked #1 in another prize category</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
         <button
           type="button"
           onClick={() => onProjectClick(project)}
@@ -108,7 +136,24 @@ function RankableRow({
               {project.judging_rating}/10
             </Badge>
           )}
+        <button
+          type="button"
+          onClick={() => toggleFavoriteProject(project.id)}
+          className="shrink-0 rounded-md p-1 hover:bg-gray-100 dark:hover:bg-gray-800"
+          aria-label="Remove from favorites"
+        >
+          <Star className="w-4 h-4 fill-yellow-500 text-yellow-500" />
+        </button>
       </div>
+      {prizeTracks.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1 pl-7">
+          {prizeTracks.map((slug) => (
+            <Badge key={slug} variant="outline" className="text-xs font-normal">
+              {prizeCategoryMap.get(slug) || deslugify(slug)}
+            </Badge>
+          ))}
+        </div>
+      )}
       {project.judging_notes && (
         <div className="mt-2 pl-7">
           <p
@@ -139,63 +184,31 @@ function RankableRow({
   );
 }
 
-function DroppableColumn({
-  id,
-  title,
-  emptyMessage,
-  projectIds,
-  projectsById,
-  onProjectClick,
-}: {
-  readonly id: ContainerId;
-  readonly title: string;
-  readonly emptyMessage: string;
-  readonly projectIds: string[];
-  readonly projectsById: Map<string, Project>;
-  readonly onProjectClick: (project: Project) => void;
-}) {
-  const { setNodeRef } = useDroppable({ id });
+// Non-draggable row marking the boundary between ranked and unranked
+// projects. Still participates in the same SortableContext (via useSortable
+// with `disabled`) so dnd-kit tracks its position and other rows can be
+// dropped above/below it.
+function DividerRow({ unrankedCount }: { readonly unrankedCount: number }) {
+  const { setNodeRef } = useSortable({ id: DIVIDER_ID, disabled: true });
 
   return (
-    <div className="min-w-0">
-      <h3 className="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">
-        {title} ({projectIds.length})
-      </h3>
-      <div
-        ref={setNodeRef}
-        className="min-h-24 space-y-2 rounded-lg border border-dashed border-gray-200 dark:border-[#404040] p-2"
-      >
-        <SortableContext
-          items={projectIds}
-          strategy={verticalListSortingStrategy}
-        >
-          {projectIds.map((projectId, index) => {
-            const project = projectsById.get(projectId);
-            if (!project) return null;
-            return (
-              <RankableRow
-                key={projectId}
-                project={project}
-                rank={id === "ranked" ? index + 1 : undefined}
-                onProjectClick={onProjectClick}
-              />
-            );
-          })}
-        </SortableContext>
-        {projectIds.length === 0 && (
-          <div className="py-6 text-center text-xs text-muted-foreground">
-            {emptyMessage}
-          </div>
-        )}
-      </div>
+    <div ref={setNodeRef} className="flex items-center gap-2 py-1">
+      <div className="h-px flex-1 bg-gray-300 dark:bg-gray-600" />
+      <span className="shrink-0 text-xs text-muted-foreground">
+        Unranked favorites ({unrankedCount})
+      </span>
+      <div className="h-px flex-1 bg-gray-300 dark:bg-gray-600" />
     </div>
   );
 }
 
-// One category's ranking board: its own drag context, scoped entirely to
-// this category's ranked/unranked lists. Kept independent per category
-// (rather than one DndContext spanning every column) since a project being
-// draggable into a category it never opted into wouldn't make sense.
+// One category's ranking board: a single sortable list per category (rather
+// than two separate drag-and-drop containers) with a divider row splitting
+// ranked from unranked projects. Everything above the divider is ranked, in
+// order; everything below is unranked (order among them isn't persisted).
+// This sidesteps cross-container collision detection entirely -- dnd-kit's
+// single-list sortable is its most solid, well-tested path, and "ranking" a
+// project just means dragging it above the divider.
 function CategoryColumn({
   eventId,
   category,
@@ -203,6 +216,7 @@ function CategoryColumn({
   projectRankings,
   setProjectRankings,
   onProjectClick,
+  multiFirstProjectIds,
 }: {
   readonly eventId: string | null;
   readonly category: PrizeCategory;
@@ -210,6 +224,7 @@ function CategoryColumn({
   readonly projectRankings: ProjectRanking[];
   readonly setProjectRankings: (rankings: ProjectRanking[]) => void;
   readonly onProjectClick: (project: Project) => void;
+  readonly multiFirstProjectIds: Set<string>;
 }) {
   const projectsById = React.useMemo(() => {
     const map = new Map<string, Project>();
@@ -221,9 +236,7 @@ function CategoryColumn({
 
   // Local drag state, resynced from the store whenever the underlying data
   // changes.
-  const [containers, setContainers] = React.useState<
-    Record<ContainerId, string[]>
-  >({ ranked: [], unranked: [] });
+  const [itemIds, setItemIds] = React.useState<string[]>([DIVIDER_ID]);
 
   React.useEffect(() => {
     const rankedIds = projectRankings
@@ -234,7 +247,7 @@ function CategoryColumn({
     const unrankedIds = eligibleFavorites
       .map((p) => p.id)
       .filter((id) => !rankedIds.includes(id));
-    setContainers({ ranked: rankedIds, unranked: unrankedIds });
+    setItemIds([...rankedIds, DIVIDER_ID, ...unrankedIds]);
   }, [category.id, projectRankings, eligibleFavorites, projectsById]);
 
   const sensors = useSensors(
@@ -243,13 +256,6 @@ function CategoryColumn({
       coordinateGetter: sortableKeyboardCoordinates,
     }),
   );
-
-  const findContainer = (id: string): ContainerId | undefined => {
-    if (id === "ranked" || id === "unranked") return id;
-    if (containers.ranked.includes(id)) return "ranked";
-    if (containers.unranked.includes(id)) return "unranked";
-    return undefined;
-  };
 
   const persist = (rankedIds: string[]) => {
     if (!eventId) return;
@@ -273,48 +279,19 @@ function CategoryColumn({
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-    if (!over) return;
-    const activeId = String(active.id);
-    const overId = String(over.id);
-    if (activeId === overId) return;
+    if (!over || active.id === over.id) return;
 
-    const activeContainer = findContainer(activeId);
-    const overContainer = findContainer(overId);
-    if (!activeContainer || !overContainer) return;
+    const oldIndex = itemIds.indexOf(String(active.id));
+    const newIndex = itemIds.indexOf(String(over.id));
+    if (oldIndex === -1 || newIndex === -1) return;
 
-    // Compute the next state as a plain value (not inside the setContainers
-    // updater) so persisting it can happen as a normal side effect here in
-    // the event handler, rather than inside a React state updater function
-    // -- updaters must stay pure since React may invoke them more than once
-    // (e.g. Strict Mode), which would otherwise fire duplicate, racing saves.
-    const sourceItems = containers[activeContainer];
-    const activeIndex = sourceItems.indexOf(activeId);
-
-    let next: Record<ContainerId, string[]>;
-    if (activeContainer === overContainer) {
-      const overIndex = sourceItems.indexOf(overId);
-      if (overIndex === -1 || activeIndex === overIndex) return;
-      next = {
-        ...containers,
-        [activeContainer]: arrayMove(sourceItems, activeIndex, overIndex),
-      };
-    } else {
-      const destItems = containers[overContainer];
-      const overIndex = destItems.indexOf(overId);
-      const insertAt = overIndex >= 0 ? overIndex : destItems.length;
-      next = {
-        ...containers,
-        [activeContainer]: sourceItems.filter((id) => id !== activeId),
-        [overContainer]: [
-          ...destItems.slice(0, insertAt),
-          activeId,
-          ...destItems.slice(insertAt),
-        ],
-      };
-    }
-    setContainers(next);
-    persist(next.ranked);
+    const next = arrayMove(itemIds, oldIndex, newIndex);
+    setItemIds(next);
+    const dividerIndex = next.indexOf(DIVIDER_ID);
+    persist(next.slice(0, dividerIndex));
   };
+
+  const dividerIndex = itemIds.indexOf(DIVIDER_ID);
 
   return (
     <div className="w-96 shrink-0 rounded-xl bg-gray-50 dark:bg-[#262626] p-4">
@@ -326,27 +303,34 @@ function CategoryColumn({
       </div>
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCorners}
+        collisionDetection={closestCenter}
         onDragEnd={handleDragEnd}
       >
-        <div className="space-y-4">
-          <DroppableColumn
-            id="ranked"
-            title="Ranked"
-            emptyMessage="Drag favorited projects here to rank them"
-            projectIds={containers.ranked}
-            projectsById={projectsById}
-            onProjectClick={onProjectClick}
-          />
-          <DroppableColumn
-            id="unranked"
-            title="Unranked favorites"
-            emptyMessage="All favorited projects are ranked"
-            projectIds={containers.unranked}
-            projectsById={projectsById}
-            onProjectClick={onProjectClick}
-          />
-        </div>
+        <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
+          <div className="space-y-2">
+            {itemIds.map((id, index) => {
+              if (id === DIVIDER_ID) {
+                return (
+                  <DividerRow
+                    key={id}
+                    unrankedCount={itemIds.length - dividerIndex - 1}
+                  />
+                );
+              }
+              const project = projectsById.get(id);
+              if (!project) return null;
+              return (
+                <RankableRow
+                  key={id}
+                  project={project}
+                  rank={index < dividerIndex ? index + 1 : undefined}
+                  onProjectClick={onProjectClick}
+                  isMultiFirst={multiFirstProjectIds.has(id)}
+                />
+              );
+            })}
+          </div>
+        </SortableContext>
       </DndContext>
     </div>
   );
@@ -375,6 +359,41 @@ export function ReviewView({
     [prizeCategories, favoritedProjects],
   );
 
+  // Projects displayed as #1 in more than one category, worth flagging since
+  // it usually means a call still needs to be made on which category it
+  // actually wins. This has to mirror the same eligibility filtering each
+  // CategoryColumn applies to its own ranked list -- a project's stored
+  // `rank` can be 1 while it's no longer shown at #1 (e.g. the true #1 was
+  // since unfavorited, leaving its ranking row orphaned but still in the DB),
+  // so the "first surviving entry" is what actually renders as #1, not
+  // necessarily whichever row has rank === 1.
+  const multiFirstProjectIds = React.useMemo(() => {
+    const firstPlaceCounts = new Map<string, number>();
+    for (const cat of eligibleCategories) {
+      const eligibleIds = new Set(
+        favoritedProjects
+          .filter((p) => getPrizeTracks(p).includes(cat.slug))
+          .map((p) => p.id),
+      );
+      const displayedFirst = projectRankings
+        .filter(
+          (r) =>
+            r.prize_category_id === cat.id && eligibleIds.has(r.project_id),
+        )
+        .sort((a, b) => a.rank - b.rank)[0]?.project_id;
+      if (displayedFirst) {
+        firstPlaceCounts.set(
+          displayedFirst,
+          (firstPlaceCounts.get(displayedFirst) ?? 0) + 1,
+        );
+      }
+    }
+    const ids = Array.from(firstPlaceCounts.entries())
+      .filter(([, count]) => count > 1)
+      .map(([id]) => id);
+    return new Set(ids);
+  }, [eligibleCategories, favoritedProjects, projectRankings]);
+
   if (favoritedProjects.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-gray-200 dark:border-[#404040] py-16 text-center text-sm text-muted-foreground">
@@ -393,7 +412,7 @@ export function ReviewView({
   }
 
   return (
-    <div className="flex gap-6 overflow-x-auto pb-4">
+    <div className="flex gap-6 overflow-x-auto overflow-y-visible pb-4">
       {eligibleCategories.map((cat) => (
         <CategoryColumn
           key={cat.id}
@@ -405,6 +424,7 @@ export function ReviewView({
           projectRankings={projectRankings}
           setProjectRankings={setProjectRankings}
           onProjectClick={onProjectClick}
+          multiFirstProjectIds={multiFirstProjectIds}
         />
       ))}
     </div>
