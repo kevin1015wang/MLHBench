@@ -1439,7 +1439,15 @@ export function ProjectTable({
           onProjectClick={onProjectClick}
         />
       ) : (
-        <DataTable table={table} emptyStateMessage={emptyStateMessage}>
+        <DataTable
+          table={table}
+          emptyStateMessage={emptyStateMessage}
+          getRowClassName={(project) =>
+            viewMode === "judging" && !project.judging_notes?.trim()
+              ? "bg-yellow-50 dark:bg-yellow-950/20 hover:bg-yellow-100 dark:hover:bg-yellow-950/30"
+              : undefined
+          }
+        >
           {/* Overlay background when processing - contained within DataTable */}
           {showProcessingModal && (
             <div className="absolute inset-0 bg-blue-50/20 dark:bg-blue-950/50 backdrop-blur-xs z-40 rounded-md pointer-events-none" />

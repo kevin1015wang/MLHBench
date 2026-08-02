@@ -15,12 +15,14 @@ interface DataTableProps<TData> {
   table: TanstackTable<TData>;
   children?: React.ReactNode;
   emptyStateMessage?: string;
+  getRowClassName?: (row: TData) => string | undefined;
 }
 
 export function DataTable<TData>({
   table,
   children,
   emptyStateMessage,
+  getRowClassName,
 }: DataTableProps<TData>) {
   return (
     <div className="data-table-container space-y-4 relative">
@@ -66,6 +68,7 @@ export function DataTable<TData>({
                   const hasError =
                     project.status === "errored" ||
                     project.status?.startsWith("invalid");
+                  const extraClassName = getRowClassName?.(row.original);
                   return (
                     <TableRow
                       key={row.id}
@@ -74,7 +77,7 @@ export function DataTable<TData>({
                       className={
                         hasError
                           ? "bg-red-50 dark:bg-red-950/20 hover:bg-red-100 dark:hover:bg-red-950/30"
-                          : ""
+                          : (extraClassName ?? "")
                       }
                     >
                       {row.getVisibleCells().map((cell) => {

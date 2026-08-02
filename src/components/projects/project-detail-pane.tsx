@@ -14,6 +14,7 @@ import {
   Star,
   Users,
   Video,
+  X,
   XCircle,
 } from "lucide-react";
 import * as React from "react";
@@ -34,7 +35,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Markdown } from "@/components/ui/markdown";
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Tooltip,
@@ -269,6 +275,7 @@ export function ProjectDetailPane({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         className="w-full sm:max-w-4xl p-0 flex flex-col h-full gap-0"
+        closeButtonClassName="hidden sm:flex"
         onInteractOutside={(e: {
           detail: { originalEvent: Event };
           preventDefault: () => void;
@@ -283,10 +290,16 @@ export function ProjectDetailPane({
           }
         }}
       >
-        <div className="p-8 border-b bg-white">
-          <div className="flex items-center justify-between gap-4">
+        <div className="p-4 sm:p-8 border-b bg-white">
+          <div className="flex justify-end sm:hidden -mt-2 -mr-2 mb-1">
+            <SheetClose className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200">
+              <X className="size-4" />
+              <span className="sr-only">Close</span>
+            </SheetClose>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="button"
                   onClick={() => toggleFavoriteProject(project.id)}
@@ -305,7 +318,7 @@ export function ProjectDetailPane({
                     }`}
                   />
                 </button>
-                <SheetTitle className="text-4xl font-bold text-gray-900 font-headline wrap-break-word leading-tight">
+                <SheetTitle className="text-2xl sm:text-4xl font-bold text-gray-900 font-headline wrap-break-word leading-tight">
                   {project.project_title}
                 </SheetTitle>
                 {project.status === "processed" ? (
@@ -323,7 +336,7 @@ export function ProjectDetailPane({
                     <StatusIcon status={project.status} className="h-6! w-6!" />
                   </StatusBadge>
                 )}
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="hidden items-center gap-2 shrink-0 sm:flex">
                   {project.github_url && (
                     <a
                       href={project.github_url}
@@ -350,7 +363,7 @@ export function ProjectDetailPane({
               </div>
             </div>
 
-            <div className="flex items-center gap-3 shrink-0">
+            <div className="flex flex-wrap items-center gap-3 shrink-0">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-medium text-gray-400">Table</span>
                 <TableNumberInput project={project} />
@@ -360,6 +373,7 @@ export function ProjectDetailPane({
                 onClick={onRerun}
                 disabled={disableAnalysis}
                 variant="outline"
+                className="hidden sm:inline-flex"
               >
                 <Play className="h-4 w-4" />
                 {rerunLabel}
@@ -675,6 +689,28 @@ export function ProjectDetailPane({
                   <span className="text-sm font-medium">Links</span>
                 </div>
                 <div className="space-y-1">
+                  {project.github_url && (
+                    <a
+                      href={project.github_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-sm text-blue-600 hover:underline"
+                    >
+                      <GithubIcon className="w-3.5 h-3.5 shrink-0" />
+                      GitHub Repository
+                    </a>
+                  )}
+                  {project.submission_url && (
+                    <a
+                      href={project.submission_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-sm text-blue-600 hover:underline"
+                    >
+                      <DevpostIcon className="w-3.5 h-3.5 shrink-0" />
+                      Devpost Submission
+                    </a>
+                  )}
                   {project.video_demo_link && (
                     <a
                       href={project.video_demo_link}
@@ -698,7 +734,9 @@ export function ProjectDetailPane({
                       {link}
                     </a>
                   ))}
-                  {!project.video_demo_link &&
+                  {!project.github_url &&
+                    !project.submission_url &&
+                    !project.video_demo_link &&
                     project.try_it_out_links.length === 0 && (
                       <p className="text-sm text-gray-500">
                         No additional links provided.
