@@ -3,6 +3,7 @@ import { Open_Sans, Space_Mono } from "next/font/google";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import "./globals.css";
 import { NotificationProvider } from "@/components/notification-provider";
+import { JudgingTimerProvider } from "@/components/providers/judging-timer-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
 
 const openSans = Open_Sans({
@@ -40,8 +41,10 @@ export default function RootLayout({
       >
         <NuqsAdapter>
           <QueryProvider>
-            {children}
-            <NotificationProvider />
+            <JudgingTimerProvider>
+              {children}
+              <NotificationProvider />
+            </JudgingTimerProvider>
           </QueryProvider>
         </NuqsAdapter>
       </body>

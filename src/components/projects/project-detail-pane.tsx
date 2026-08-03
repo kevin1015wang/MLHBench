@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { DevpostIcon } from "@/components/icons/devpost-icon";
 import { GithubCopilotIcon } from "@/components/icons/github-copilot-icon";
 import { GithubIcon } from "@/components/icons/github-icon";
+import { JudgingTimerCard } from "@/components/projects/judging-timer-card";
 import { SaveStatusIndicator } from "@/components/save-status-indicator";
 import { StatusBadge } from "@/components/status/status-badge";
 import { StatusIcon } from "@/components/status/status-icon";
@@ -384,6 +385,8 @@ export function ProjectDetailPane({
 
         <div className="flex-1 overflow-y-auto">
           <div className="px-8 py-6 space-y-4 bg-gray-50/50">
+            <JudgingTimerCard />
+
             <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm space-y-3">
               <div className="flex items-center gap-2 text-gray-500">
                 <Gavel className="w-5 h-5" />
