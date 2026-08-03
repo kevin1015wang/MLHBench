@@ -42,6 +42,7 @@ import {
 import { useAutoSaveField } from "@/hooks/use-auto-save-field";
 import { useDataTable } from "@/hooks/use-data-table";
 import { usePrizeCategories } from "@/hooks/use-prize-categories";
+import { useSession } from "@/hooks/use-session";
 import { exportProjectsToCSV } from "@/lib/csv-export";
 import {
   type FilterState,
@@ -264,6 +265,8 @@ export function ProjectTable({
   eventId,
 }: ProjectTableProps) {
   const { toggleFavoriteProject } = useStore();
+  const { user } = useSession();
+  const isAdmin = user?.role === "admin";
 
   // Load persisted filter state when eventId changes
   const persistedState = React.useMemo(() => {
@@ -1420,7 +1423,7 @@ export function ProjectTable({
       >
         <DataTableToolbar
           table={table}
-          onRunAll={handleRunAll}
+          onRunAll={isAdmin ? handleRunAll : undefined}
           onRunSelected={(ids) => onBatchRun(ids)}
           onRerunFailed={handleRerunFailed}
           onImport={viewMode === "judging" ? handleExportCSV : onImport}

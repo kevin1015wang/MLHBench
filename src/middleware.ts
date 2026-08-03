@@ -3,13 +3,11 @@ import { NextResponse } from "next/server";
 
 const PUBLIC_PATHS = [
   "/login",
-  "/signup",
   "/api/auth/login",
   "/api/auth/callback",
   "/api/auth/session",
   "/api/auth/logout",
   "/api/auth/guest-login",
-  "/api/auth/guest-signup",
 ];
 
 const isPublicPath = (pathname: string) => {

@@ -44,7 +44,7 @@ export default async function LoginPage(props: LoginPageProps) {
   } else if (error === "email_not_verified") {
     errorMessage = "Your Google email address must be verified.";
   } else if (error === "invalid_credentials") {
-    errorMessage = "Incorrect username or password.";
+    errorMessage = "Incorrect email or password.";
   } else if (error) {
     errorMessage = "We couldn't complete login. Please try again.";
   }
@@ -121,11 +121,12 @@ export default async function LoginPage(props: LoginPageProps) {
                 className="flex flex-col items-stretch space-y-3 max-w-xs mx-auto w-full text-left"
               >
                 <div className="space-y-1">
-                  <Label htmlFor="username">Username</Label>
+                  <Label htmlFor="email">Email</Label>
                   <Input
-                    id="username"
-                    name="username"
-                    autoComplete="username"
+                    id="email"
+                    name="email"
+                    type="email"
+                    autoComplete="email"
                     required
                   />
                 </div>
@@ -145,10 +146,8 @@ export default async function LoginPage(props: LoginPageProps) {
               </form>
 
               <p className="text-xs text-muted-foreground">
-                New guest?{" "}
-                <a href="/signup" className="underline hover:text-foreground">
-                  Create a guest account
-                </a>
+                Guest accounts are created by the organizer -- ask them for your
+                login if you don&apos;t have one.
               </p>
 
               <p className="text-xs text-muted-foreground">

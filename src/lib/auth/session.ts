@@ -13,8 +13,9 @@ export interface SessionUser {
   email?: string;
   avatarUrl?: string | null;
   // "admin" is Kevin, gated by ALLOWED_LOGIN_EMAIL via Google OAuth.
-  // "guest" is a self-registered username/password account, scoped to
-  // whichever events the admin has granted via guest_event_access.
+  // "guest" is an email/password account the admin creates from the
+  // guest-management page, scoped to whichever events they've granted via
+  // guest_event_access.
   role: "admin" | "guest";
   guestId?: string;
 }
@@ -176,4 +177,22 @@ export const verifyPassword = (
   const expected = Buffer.from(hash, "hex");
   if (candidate.length !== expected.length) return false;
   return timingSafeEqual(candidate, expected);
+};
+
+// Excludes visually-confusable characters (0/O, 1/l/I) since this is meant
+// to be read off a screen and typed or shared out of band, not pasted.
+const GUEST_PASSWORD_ALPHABET =
+  "ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+
+// Generates the one-time password for a guest account the admin creates.
+// It's only ever returned once, in the creation response -- only the hash
+// is persisted.
+export const generateGuestPassword = (length = 12) => {
+  const bytes = randomBytes(length);
+  let password = "";
+  for (let i = 0; i < length; i++) {
+    password +=
+      GUEST_PASSWORD_ALPHABET[bytes[i] % GUEST_PASSWORD_ALPHABET.length];
+  }
+  return password;
 };

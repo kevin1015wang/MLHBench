@@ -1,9 +1,14 @@
 "use client";
 
+import { KeyRound, Plus, Search, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { AddGuestDialog } from "@/components/admin/add-guest-dialog";
+import { DeleteGuestDialog } from "@/components/admin/delete-guest-dialog";
+import { ResetGuestPasswordDialog } from "@/components/admin/reset-guest-password-dialog";
 import { SaveStatusIndicator } from "@/components/save-status-indicator";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { useAutoSaveField } from "@/hooks/use-auto-save-field";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
@@ -11,7 +16,7 @@ import { useStore } from "@/lib/store";
 
 interface Guest {
   id: string;
-  username: string;
+  email: string;
   display_name: string;
   ai_run_quota: number;
   ai_run_count: number;
@@ -26,6 +31,10 @@ export function GuestManagementPage() {
   const [guests, setGuests] = useState<Guest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [resettingGuest, setResettingGuest] = useState<Guest | null>(null);
+  const [deletingGuest, setDeletingGuest] = useState<Guest | null>(null);
+  const [search, setSearch] = useState("");
 
   const loadGuests = useCallback(async () => {
     try {
@@ -56,54 +65,68 @@ export function GuestManagementPage() {
     );
   };
 
-  const toggleEventAccess = async (
-    guestId: string,
-    eventId: string,
-    granted: boolean,
-  ) => {
-    setGuests((prev) =>
-      prev.map((g) =>
-        g.id === guestId
-          ? {
-              ...g,
-              event_ids: granted
-                ? [...g.event_ids, eventId]
-                : g.event_ids.filter((id) => id !== eventId),
-            }
-          : g,
-      ),
-    );
-
-    try {
-      const response = granted
-        ? await fetch(`/api/admin/guests/${guestId}/access`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ event_id: eventId }),
-          })
-        : await fetch(`/api/admin/guests/${guestId}/access/${eventId}`, {
-            method: "DELETE",
-          });
-      if (!response.ok) throw new Error("Failed to update access");
-    } catch (err) {
-      console.error(err);
-      // Revert the optimistic update by reloading from the server.
-      void loadGuests();
-    }
+  const handleGuestDeleted = (guestId: string) => {
+    setGuests((prev) => prev.filter((g) => g.id !== guestId));
   };
+
+  const query = search.trim().toLowerCase();
+  const filteredGuests = query
+    ? guests.filter(
+        (guest) =>
+          guest.display_name.toLowerCase().includes(query) ||
+          guest.email.toLowerCase().includes(query),
+      )
+    : guests;
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-          Manage Guests
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400 mt-1">
-          Grant guest accounts access to events and set their AI review run
-          quota. Guests sign themselves up at /signup with zero access by
-          default.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            Manage Guests
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
+            Create guest accounts and set their AI review run quota. Grant event
+            access from each event's Edit Event dialog.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search guests..."
+              className="h-9 w-56 pl-8"
+            />
+          </div>
+          <Button onClick={() => setIsAddDialogOpen(true)}>
+            <Plus className="w-4 h-4" />
+            New Guest
+          </Button>
+        </div>
       </div>
+
+      <AddGuestDialog
+        open={isAddDialogOpen}
+        onOpenChange={setIsAddDialogOpen}
+        onCreated={loadGuests}
+      />
+
+      <ResetGuestPasswordDialog
+        guest={resettingGuest}
+        onOpenChange={(open) => {
+          if (!open) setResettingGuest(null);
+        }}
+      />
+
+      <DeleteGuestDialog
+        guest={deletingGuest}
+        onOpenChange={(open) => {
+          if (!open) setDeletingGuest(null);
+        }}
+        onDeleted={handleGuestDeleted}
+      />
 
       {error && (
         <div className="bg-destructive/10 border border-destructive/30 text-destructive text-sm p-3 rounded-md">
@@ -115,19 +138,22 @@ export function GuestManagementPage() {
         <div className="text-center py-12 text-gray-500">Loading...</div>
       ) : guests.length === 0 ? (
         <div className="text-center py-12 text-gray-500">
-          No guests have signed up yet.
+          No guests yet -- click "New Guest" to create one.
+        </div>
+      ) : filteredGuests.length === 0 ? (
+        <div className="text-center py-12 text-gray-500">
+          No guests match "{search}".
         </div>
       ) : (
         <div className="space-y-3">
-          {guests.map((guest) => (
+          {filteredGuests.map((guest) => (
             <GuestCard
               key={guest.id}
               guest={guest}
               events={events}
               onQuotaSave={(quota) => handleQuotaSave(guest.id, quota)}
-              onToggleEventAccess={(eventId, granted) =>
-                toggleEventAccess(guest.id, eventId, granted)
-              }
+              onResetPassword={() => setResettingGuest(guest)}
+              onDelete={() => setDeletingGuest(guest)}
             />
           ))}
         </div>
@@ -140,27 +166,33 @@ function GuestCard({
   guest,
   events,
   onQuotaSave,
-  onToggleEventAccess,
+  onResetPassword,
+  onDelete,
 }: {
   readonly guest: Guest;
   readonly events: Array<{ id: string; name: string }>;
   readonly onQuotaSave: (quota: number) => Promise<void>;
-  readonly onToggleEventAccess: (eventId: string, granted: boolean) => void;
+  readonly onResetPassword: () => void;
+  readonly onDelete: () => void;
 }) {
   const { localValue, status, handleChange, flush } = useAutoSaveField({
     value: guest.ai_run_quota,
     onSave: onQuotaSave,
   });
 
+  const grantedEvents = events.filter((event) =>
+    guest.event_ids.includes(event.id),
+  );
+
   return (
     <Card className="p-5 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h3 className="font-semibold text-gray-900 dark:text-white">
-            {guest.display_name || guest.username}
+            {guest.display_name || guest.email}
           </h3>
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            @{guest.username}
+            {guest.email}
           </p>
         </div>
 
@@ -185,34 +217,38 @@ function GuestCard({
             compact
             showButton={false}
           />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:text-gray-200 dark:hover:bg-gray-800"
+            onClick={onResetPassword}
+            aria-label="Reset password"
+          >
+            <KeyRound className="w-4 h-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-gray-400 hover:text-destructive hover:bg-destructive/10"
+            onClick={onDelete}
+            aria-label="Delete guest"
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
         </div>
       </div>
 
       <div className="space-y-2">
         <span className="text-xs font-medium text-gray-400">Event access</span>
-        <div className="flex flex-wrap gap-3">
-          {events.map((event) => {
-            const granted = guest.event_ids.includes(event.id);
-            const checkboxId = `guest-${guest.id}-event-${event.id}`;
-            return (
-              <label
-                key={event.id}
-                htmlFor={checkboxId}
-                className="flex items-center gap-2 text-sm cursor-pointer"
-              >
-                <Checkbox
-                  id={checkboxId}
-                  checked={granted}
-                  onCheckedChange={(checked) =>
-                    onToggleEventAccess(event.id, checked === true)
-                  }
-                />
+        <div className="flex flex-wrap gap-1.5">
+          {grantedEvents.length > 0 ? (
+            grantedEvents.map((event) => (
+              <Badge key={event.id} variant="secondary">
                 {event.name}
-              </label>
-            );
-          })}
-          {events.length === 0 && (
-            <span className="text-sm text-gray-500">No events yet.</span>
+              </Badge>
+            ))
+          ) : (
+            <span className="text-sm text-gray-500">No event access</span>
           )}
         </div>
       </div>

@@ -12,10 +12,12 @@ const buildErrorRedirect = (req: NextRequest, code: string) => {
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
-    const username = String(formData.get("username") ?? "").trim();
+    const email = String(formData.get("email") ?? "")
+      .trim()
+      .toLowerCase();
     const password = String(formData.get("password") ?? "");
 
-    if (!username || !password) {
+    if (!email || !password) {
       return buildErrorRedirect(req, "invalid_credentials");
     }
 
@@ -23,7 +25,7 @@ export async function POST(req: NextRequest) {
     const { data: guest, error } = await supabase
       .from("guests")
       .select()
-      .eq("username", username)
+      .eq("email", email)
       .maybeSingle();
 
     if (error || !guest) {
@@ -43,7 +45,7 @@ export async function POST(req: NextRequest) {
       toSessionData({
         user: {
           id: guest.id,
-          firstName: guest.display_name || guest.username,
+          firstName: guest.display_name || guest.email,
           lastName: "",
           role: "guest",
           guestId: guest.id,

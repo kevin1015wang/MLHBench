@@ -64,24 +64,26 @@ create index events_slug_idx on events(slug);
 
 -- Guest accounts: a second, lightweight identity type alongside the single
 -- Google-authenticated admin (Kevin, gated by ALLOWED_LOGIN_EMAIL -- see
--- src/lib/auth/session.ts). Guests sign up themselves with a username and
--- password; a fresh account has zero event access and zero AI run quota
--- until the admin grants both via the guest-management page, so an
--- unvetted signup is inert by default.
+-- src/lib/auth/session.ts). The admin creates these from the
+-- guest-management page (email + a generated password, shared out of band)
+-- -- there's no self-service signup. A fresh account gets a default AI run
+-- quota (see default below) but zero event access -- it can't actually do
+-- anything until the admin grants at least one event.
 create table guests (
   id uuid primary key default gen_random_uuid(),
-  username text not null,
+  email text not null,
   password_hash text not null,
   password_salt text not null,
   display_name text not null default '',
 
-  ai_run_quota integer not null default 0,
+  ai_run_quota integer not null default 20,
   ai_run_count integer not null default 0,
 
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
 
-  constraint guests_username_unique unique (username)
+  constraint guests_email_unique unique (email),
+  constraint guests_email_format check (email ~* '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$')
 );
 
 -- Event-level access grants: which whole events a guest can see/act on.

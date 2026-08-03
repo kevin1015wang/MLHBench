@@ -762,7 +762,11 @@ export function DataTableToolbar<TData>({
         )}
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        {(onRunAll || onRunSelected) && (
+        {/* Without onRunAll (e.g. guests, whose AI runs are quota-limited),
+            only show this once specific projects are selected -- no bare
+            "Run All Projects" affordance that could burn through a whole
+            quota in one click. */}
+        {(onRunAll || (onRunSelected && hasSelection)) && (
           <Button
             onClick={handleRunClick}
             variant={runButtonVariant === "default" ? "default" : "outline"}

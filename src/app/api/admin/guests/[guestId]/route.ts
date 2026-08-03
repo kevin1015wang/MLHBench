@@ -48,3 +48,40 @@ export async function PATCH(
     );
   }
 }
+
+// guest_event_access rows cascade-delete (on delete cascade), so this also
+// immediately revokes every event grant. Their session cookie itself isn't
+// forcibly invalidated, but every guest-scoped check (event access, AI run
+// quota) looks the guest row up fresh each time, so a deleted guest loses
+// all real access immediately and can't log in again.
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ guestId: string }> },
+) {
+  try {
+    const session = await getSession();
+    const adminError = requireAdmin(session);
+    if (adminError) return adminError;
+
+    const { guestId } = await params;
+
+    const supabase = createAdminClient();
+    const { error } = await supabase.from("guests").delete().eq("id", guestId);
+
+    if (error) {
+      console.error("Error deleting guest:", error);
+      return NextResponse.json(
+        { error: "Failed to delete guest" },
+        { status: 500 },
+      );
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("Unexpected error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+}

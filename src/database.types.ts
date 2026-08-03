@@ -89,33 +89,33 @@ export type Database = {
           ai_run_quota: number
           created_at: string
           display_name: string
+          email: string
           id: string
           password_hash: string
           password_salt: string
           updated_at: string
-          username: string
         }
         Insert: {
           ai_run_count?: number
           ai_run_quota?: number
           created_at?: string
           display_name?: string
+          email: string
           id?: string
           password_hash: string
           password_salt: string
           updated_at?: string
-          username: string
         }
         Update: {
           ai_run_count?: number
           ai_run_quota?: number
           created_at?: string
           display_name?: string
+          email?: string
           id?: string
           password_hash?: string
           password_salt?: string
           updated_at?: string
-          username?: string
         }
         Relationships: []
       }

@@ -2,6 +2,7 @@
 
 import { X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { EventGuestAccess } from "@/components/events/event-guest-access";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -188,6 +189,16 @@ export function EditEventDialog({
               onChange={(e) => setJudgingEndDate(e.target.value)}
               disabled={isSaving}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label>
+              Guest Access
+              <span className="text-xs font-normal text-muted-foreground ml-2">
+                Applies immediately, not tied to Save below
+              </span>
+            </Label>
+            {event && <EventGuestAccess eventId={event.id} />}
           </div>
 
           {error && (
