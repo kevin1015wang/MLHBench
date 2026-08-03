@@ -3,8 +3,8 @@ import Papa from "papaparse";
 
 import type { Database } from "@/database.types";
 import { getGithubUrls } from "@/lib/github/utils";
+import { matchPrizeCategorySlugs } from "@/lib/prize-category-matching";
 import { createClient } from "@/lib/supabase/server";
-import { slugify } from "@/lib/utils/string-utils";
 
 type ProjectInsert = Database["public"]["Tables"]["projects"]["Insert"];
 type CsvRecord = Record<string, string>;
@@ -205,7 +205,7 @@ function mapRecordToProject(
   );
   project.team_size = (additionalTeamMembers ?? 0) + 1;
 
-  project.standardized_opt_in_prizes = matchPrizeCategories(
+  project.standardized_opt_in_prizes = matchPrizeCategorySlugs(
     project.opt_in_prizes,
     prizeCategories,
   );
@@ -256,44 +256,6 @@ function parseList(value: string) {
     .split(/[\n,]+/)
     .map((item) => item.trim())
     .filter(Boolean);
-}
-
-// Devpost's "Opt-In Prizes" column format varies by event: some prefix every
-// entry with "<Sponsor>: " (e.g. "MLH: Best Use of Gemini API", "Deloitte:
-// Green AI"), others just list bare prize names with no sponsor info at all
-// (e.g. "Best Use of Gemini API"). We only want MLH-sponsored prizes, since
-// prize review is scoped to MLH prize tracks -- so entries explicitly
-// prefixed with a *different* sponsor are skipped, while both MLH-prefixed
-// and un-prefixed entries are treated as MLH-prize candidates and checked
-// against the catalog. A category matches if the slugified raw name equals
-// either its canonical `slug` or one of its `alias_slugs` -- otherwise the
-// slugified name becomes a new, uncatalogued slug.
-function matchPrizeCategories(
-  optInPrizes: string,
-  categories: PrizeCategory[],
-) {
-  if (!optInPrizes.trim()) return [];
-  const matched = new Set<string>();
-
-  optInPrizes.split(",").forEach((entry) => {
-    const trimmed = entry.trim();
-    if (!trimmed) return;
-
-    const prefixMatch = trimmed.match(/^([^:]+):\s*(.+)$/);
-    if (prefixMatch && !/^mlh$/i.test(prefixMatch[1].trim())) return;
-
-    const name = prefixMatch ? prefixMatch[2].trim() : trimmed;
-    const candidateSlug = slugify(name);
-    const catalogMatch = categories.find(
-      (category) =>
-        category.slug === candidateSlug ||
-        category.alias_slugs.includes(candidateSlug),
-    );
-
-    matched.add(catalogMatch ? catalogMatch.slug : candidateSlug);
-  });
-
-  return Array.from(matched);
 }
 
 function fixCsvHeaders(text: string) {

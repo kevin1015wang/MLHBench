@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
-import { deslugify, getPrizeTracks } from "@/lib/project-utils";
+import { extractMlhCandidateSlugs } from "@/lib/prize-category-matching";
+import { deslugify } from "@/lib/project-utils";
 import { type PrizeCategory, useStore } from "@/lib/store";
 import { DeletePrizeCategoryDialog } from "./delete-prize-category-dialog";
 import { PrizeCategoryDialog } from "./prize-category-dialog";
@@ -28,14 +29,22 @@ export function PrizeCategoriesPage() {
     useState<PrizeCategory | null>(null);
 
   const configuredSlugs = useMemo(
-    () => new Set(prizeCategories.map((c) => c.slug)),
+    () =>
+      new Set(
+        prizeCategories.flatMap((c) => [c.slug, ...(c.alias_slugs ?? [])]),
+      ),
     [prizeCategories],
   );
 
+  // Surfaces MLH-shaped prize names (bare or "MLH: ..." prefixed entries in
+  // a project's raw Opt-In Prizes) that don't match any configured category
+  // yet, so they can be added deliberately. This is read from the raw text
+  // rather than standardized_opt_in_prizes, which only ever holds slugs that
+  // are already configured here -- see matchPrizeCategorySlugs.
   const missingSlugs = useMemo(() => {
     const slugs = new Set<string>();
     projects.forEach((project) => {
-      getPrizeTracks(project).forEach((slug) => {
+      extractMlhCandidateSlugs(project.opt_in_prizes ?? "").forEach((slug) => {
         if (!configuredSlugs.has(slug)) {
           slugs.add(slug);
         }
