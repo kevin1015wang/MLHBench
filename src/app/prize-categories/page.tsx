@@ -5,7 +5,7 @@ import { PrizeCategoriesPage } from "@/components/prize-categories/prize-categor
 
 export default function Page() {
   return (
-    <AppShell onProjectClick={() => {}}>
+    <AppShell>
       <PrizeCategoriesPage />
     </AppShell>
   );

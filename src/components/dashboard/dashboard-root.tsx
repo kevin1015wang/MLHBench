@@ -307,11 +307,7 @@ function DashboardContent({ children }: DashboardRootProps) {
         handleImportClick,
       }}
     >
-      <AppShell
-        selectedEvent={selectedEvent}
-        selectedProject={selectedProject}
-        onProjectClick={handleProjectClick}
-      >
+      <AppShell selectedEvent={selectedEvent} selectedProject={selectedProject}>
         {children}
       </AppShell>
 

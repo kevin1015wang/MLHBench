@@ -1,6 +1,6 @@
 "use client";
 
-import { Award, LogOut, Menu } from "lucide-react";
+import { Award, LogOut } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { BenchLogo } from "@/components/icons/bench-logo";
@@ -29,13 +29,8 @@ import type { Event, Project } from "@/lib/store";
 interface TopBarProps {
   readonly selectedEvent?: Event;
   readonly selectedProject?: Project | null;
-  readonly onMenuClick?: () => void;
 }
-export function TopBar({
-  selectedEvent,
-  selectedProject,
-  onMenuClick,
-}: TopBarProps) {
+export function TopBar({ selectedEvent, selectedProject }: TopBarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, isLoading } = useSession();
@@ -60,34 +55,17 @@ export function TopBar({
   return (
     <header className="h-16 bg-white dark:bg-[#262626] border-b border-gray-200 dark:border-[#404040] flex items-center justify-between gap-2 px-4 sm:px-6">
       <div className="flex min-w-0 flex-1 items-center gap-2">
-        {onMenuClick && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="shrink-0 md:hidden hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200"
-            onClick={onMenuClick}
-            aria-label="Open navigation menu"
-          >
-            <Menu className="w-5 h-5" />
-          </Button>
-        )}
+        <Link
+          href="/events"
+          className="flex shrink-0 items-center gap-3 mr-6 hover:opacity-80 transition-opacity"
+        >
+          <BenchLogo className="w-8 h-4 text-(--mlh-dark-grey) dark:text-(--mlh-white)" />
+          <h1 className="hidden sm:block text-2xl font-bold text-(--mlh-dark-grey) dark:text-(--mlh-white) font-headline">
+            Bench
+          </h1>
+        </Link>
         <Breadcrumb className="min-w-0">
           <BreadcrumbList>
-            {isEventsPage && (
-              <BreadcrumbItem>
-                <BreadcrumbLink asChild>
-                  <Link
-                    href="/events"
-                    className="flex items-center gap-3 mr-2 hover:opacity-80 transition-opacity"
-                  >
-                    <BenchLogo className="w-8 h-4 text-(--mlh-dark-grey) dark:text-(--mlh-white)" />
-                    <h1 className="text-2xl font-bold text-(--mlh-dark-grey) dark:text-(--mlh-white) font-headline">
-                      Bench
-                    </h1>
-                  </Link>
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-            )}
             {!isEventsPage && (
               <BreadcrumbItem>
                 <BreadcrumbLink asChild>
