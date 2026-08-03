@@ -35,8 +35,8 @@ export function PrizeCategoryDialog({
 
   const [name, setName] = useState("");
   // Comma-separated; the first entry is the canonical slug, any others are
-  // aliases matched during import (see matchPrizeCategories() in
-  // src/app/api/projects/import-csv/route.ts).
+  // aliases matched during import (see matchPrizeCategorySlugs() in
+  // src/lib/prize-category-matching.ts).
   const [slugsInput, setSlugsInput] = useState("");
   const [slugsTouched, setSlugsTouched] = useState(false);
   const [shortName, setShortName] = useState("");

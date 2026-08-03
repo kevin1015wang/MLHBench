@@ -130,7 +130,7 @@ create table prize_categories (
   -- Additional slugs (e.g. derived from a different event's differently-
   -- worded Devpost prize name) that should also resolve to this category
   -- during CSV import, alongside the canonical `slug`. See
-  -- matchPrizeCategories() in src/app/api/projects/import-csv/route.ts.
+  -- matchPrizeCategorySlugs() in src/lib/prize-category-matching.ts.
   alias_slugs text[] not null default '{}',
 
   system_prompt text not null,
@@ -143,6 +143,22 @@ create table prize_categories (
 );
 
 create index prize_categories_slug_idx on prize_categories(slug);
+
+-- Prize-name slugs (derived from projects' raw opt_in_prizes text via
+-- extractMlhCandidateSlugs()) that an admin has reviewed and dismissed as
+-- NOT actual MLH prize tracks -- e.g. hackathon-local awards like "Best
+-- UI/UX" that Devpost exports without a sponsor prefix, so they look like
+-- MLH candidates even though no prize_categories row should ever exist for
+-- them. Dismissing keeps them out of the "Missing Configuration" list on
+-- the Prize Categories page.
+create table ignored_prize_slugs (
+  id uuid primary key default gen_random_uuid(),
+  slug text not null,
+
+  created_at timestamptz not null default now(),
+
+  constraint ignored_prize_slugs_slug_unique unique (slug)
+);
 
 -- One row per (project, prize_category) recording where that project ranks
 -- within that category's shortlist. Rank order is rewritten wholesale on
@@ -173,11 +189,13 @@ alter table events enable row level security;
 alter table projects enable row level security;
 alter table prize_categories enable row level security;
 alter table project_rankings enable row level security;
+alter table ignored_prize_slugs enable row level security;
 
 create policy "anon full access" on events for all to anon using (true) with check (true);
 create policy "anon full access" on projects for all to anon using (true) with check (true);
 create policy "anon full access" on prize_categories for all to anon using (true) with check (true);
 create policy "anon full access" on project_rankings for all to anon using (true) with check (true);
+create policy "anon full access" on ignored_prize_slugs for all to anon using (true) with check (true);
 
 -- The app's live "Processing Projects" view relies on Supabase Realtime
 -- (useRealtimeSubscription) pushing postgres_changes events for status/result
@@ -188,3 +206,4 @@ alter publication supabase_realtime add table events;
 alter publication supabase_realtime add table projects;
 alter publication supabase_realtime add table prize_categories;
 alter publication supabase_realtime add table project_rankings;
+alter publication supabase_realtime add table ignored_prize_slugs;

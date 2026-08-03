@@ -12,6 +12,7 @@ type Event = Tables<"events">;
 type Project = Tables<"projects">;
 type PrizeCategory = Tables<"prize_categories">;
 type ProjectRanking = Tables<"project_rankings">;
+type IgnoredPrizeSlug = Tables<"ignored_prize_slugs">;
 
 export function useRealtimeSubscription() {
   const queryClient = useQueryClient();
@@ -152,6 +153,32 @@ export function useRealtimeSubscription() {
                 if (eventType === "DELETE")
                   return oldCats.filter((c) => c.id !== oldRecord.id);
                 return oldCats;
+              },
+            );
+          },
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "ignored_prize_slugs" },
+          (payload: RealtimePostgresChangesPayload<IgnoredPrizeSlug>) => {
+            console.log("Realtime ignored_prize_slug update:", payload);
+            queryClient.setQueryData<IgnoredPrizeSlug[]>(
+              ["ignored_prize_slugs"],
+              (oldSlugs) => {
+                if (!oldSlugs) return oldSlugs;
+                const { eventType, new: newRecord, old: oldRecord } = payload;
+
+                if (eventType === "INSERT") {
+                  if (oldSlugs.some((s) => s.id === newRecord.id)) {
+                    return oldSlugs.map((s) =>
+                      s.id === newRecord.id ? newRecord : s,
+                    );
+                  }
+                  return [...oldSlugs, newRecord];
+                }
+                if (eventType === "DELETE")
+                  return oldSlugs.filter((s) => s.id !== oldRecord.id);
+                return oldSlugs;
               },
             );
           },

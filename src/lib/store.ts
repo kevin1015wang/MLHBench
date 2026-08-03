@@ -6,6 +6,7 @@ type Event = Tables<"events">;
 type Project = Tables<"projects">;
 type PrizeCategory = Tables<"prize_categories">;
 type ProjectRanking = Tables<"project_rankings">;
+type IgnoredPrizeSlug = Tables<"ignored_prize_slugs">;
 type ProjectProcessingStatus = Enums<"project_processing_status">;
 type ComplexityRating = Enums<"complexity_rating">;
 type NotificationType = "info" | "success" | "warning" | "error";
@@ -22,6 +23,7 @@ interface AppState {
   projects: Project[];
   prizeCategories: PrizeCategory[];
   projectRankings: ProjectRanking[];
+  ignoredPrizeSlugs: IgnoredPrizeSlug[];
   selectedEventId: string | null;
   isProcessing: boolean;
   processingProjects: string[];
@@ -34,6 +36,7 @@ interface AppState {
   setProjects: (projects: Project[]) => void;
   setPrizeCategories: (categories: PrizeCategory[]) => void;
   setProjectRankings: (rankings: ProjectRanking[]) => void;
+  setIgnoredPrizeSlugs: (slugs: IgnoredPrizeSlug[]) => void;
   setSelectedEventId: (id: string | null) => void;
   updateProject: (id: string, updates: Partial<Project>) => void;
   updateEvent: (id: string, updates: Partial<Event>) => void;
@@ -53,6 +56,7 @@ export const useStore = create<AppState>((set, get) => ({
   projects: [],
   prizeCategories: [],
   projectRankings: [],
+  ignoredPrizeSlugs: [],
   selectedEventId: null,
   isProcessing: false,
   processingProjects: [],
@@ -85,6 +89,7 @@ export const useStore = create<AppState>((set, get) => ({
   setProjects: (projects) => set({ projects }),
   setPrizeCategories: (prizeCategories) => set({ prizeCategories }),
   setProjectRankings: (projectRankings) => set({ projectRankings }),
+  setIgnoredPrizeSlugs: (ignoredPrizeSlugs) => set({ ignoredPrizeSlugs }),
   setSelectedEventId: (id) => set({ selectedEventId: id }),
   updateProject: (id, updates) =>
     set((state) => ({
@@ -180,4 +185,5 @@ export type {
   NotificationType,
   PrizeCategory,
   ProjectRanking,
+  IgnoredPrizeSlug,
 };

@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { toast } from "sonner";
 import {
   getEvents,
+  getIgnoredPrizeSlugs,
   getPrizeCategories,
   getProjectRankings,
   getProjects,
@@ -12,8 +13,13 @@ import {
 import { useStore } from "@/lib/store";
 
 export function useDashboardData(activeEventId: string | null) {
-  const { setEvents, setProjects, setPrizeCategories, setProjectRankings } =
-    useStore();
+  const {
+    setEvents,
+    setProjects,
+    setPrizeCategories,
+    setProjectRankings,
+    setIgnoredPrizeSlugs,
+  } = useStore();
 
   // 1. Fetch Events
   const {
@@ -77,6 +83,21 @@ export function useDashboardData(activeEventId: string | null) {
     refetchOnReconnect: false,
   });
 
+  // 5. Fetch Ignored Prize Slugs
+  const {
+    data: ignoredPrizeSlugs,
+    isLoading: isLoadingIgnoredPrizeSlugs,
+    error: ignoredPrizeSlugsError,
+  } = useQuery({
+    queryKey: ["ignored_prize_slugs"],
+    queryFn: () => getIgnoredPrizeSlugs(),
+    enabled: true,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+  });
+
   // --- Synchronization Effects ---
 
   // Sync Events
@@ -107,22 +128,46 @@ export function useDashboardData(activeEventId: string | null) {
     }
   }, [projectRankings, setProjectRankings]);
 
+  // Sync Ignored Prize Slugs
+  useEffect(() => {
+    if (ignoredPrizeSlugs) {
+      setIgnoredPrizeSlugs(ignoredPrizeSlugs);
+    }
+  }, [ignoredPrizeSlugs, setIgnoredPrizeSlugs]);
+
   // Error Handling
   useEffect(() => {
-    if (eventsError || categoriesError || projectsError || rankingsError) {
+    if (
+      eventsError ||
+      categoriesError ||
+      projectsError ||
+      rankingsError ||
+      ignoredPrizeSlugsError
+    ) {
       console.error(
         "Failed to load dashboard data",
-        eventsError || categoriesError || projectsError || rankingsError,
+        eventsError ||
+          categoriesError ||
+          projectsError ||
+          rankingsError ||
+          ignoredPrizeSlugsError,
       );
       toast.error("Failed to load dashboard data");
     }
-  }, [eventsError, categoriesError, projectsError, rankingsError]);
+  }, [
+    eventsError,
+    categoriesError,
+    projectsError,
+    rankingsError,
+    ignoredPrizeSlugsError,
+  ]);
 
   const isLoading =
     isLoadingEvents ||
     isLoadingCategories ||
     isLoadingProjects ||
-    isLoadingRankings;
+    isLoadingRankings ||
+    isLoadingIgnoredPrizeSlugs;
 
   return {
     isLoading,

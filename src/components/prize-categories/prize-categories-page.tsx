@@ -1,21 +1,36 @@
 "use client";
 
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
+import { getProjects, recomputePrizeTracks } from "@/lib/data-service";
 import { extractMlhCandidateSlugs } from "@/lib/prize-category-matching";
 import { deslugify } from "@/lib/project-utils";
 import { type PrizeCategory, useStore } from "@/lib/store";
 import { DeletePrizeCategoryDialog } from "./delete-prize-category-dialog";
+import {
+  MissingPrizeSlugsCard,
+  type MissingSlugInfo,
+} from "./missing-prize-slugs-card";
 import { PrizeCategoryDialog } from "./prize-category-dialog";
 
 export function PrizeCategoriesPage() {
   useDashboardData(null);
 
-  const { prizeCategories, projects, setPrizeCategories } = useStore();
+  const {
+    prizeCategories,
+    projects,
+    events,
+    ignoredPrizeSlugs,
+    setPrizeCategories,
+    setIgnoredPrizeSlugs,
+    setProjects,
+  } = useStore();
+  const [isRecomputing, setIsRecomputing] = useState(false);
 
   const [editingCategory, setEditingCategory] = useState<PrizeCategory | null>(
     null,
@@ -36,22 +51,38 @@ export function PrizeCategoriesPage() {
     [prizeCategories],
   );
 
+  const hiddenSlugs = useMemo(
+    () => new Set(ignoredPrizeSlugs.map((s) => s.slug)),
+    [ignoredPrizeSlugs],
+  );
+
   // Surfaces MLH-shaped prize names (bare or "MLH: ..." prefixed entries in
   // a project's raw Opt-In Prizes) that don't match any configured category
-  // yet, so they can be added deliberately. This is read from the raw text
+  // yet, grouped by the event(s) they showed up on. Read from the raw text
   // rather than standardized_opt_in_prizes, which only ever holds slugs that
-  // are already configured here -- see matchPrizeCategorySlugs.
-  const missingSlugs = useMemo(() => {
-    const slugs = new Set<string>();
+  // are already configured here -- see matchPrizeCategorySlugs. Slugs the
+  // admin has explicitly hidden (ignoredPrizeSlugs) are excluded.
+  const missingSlugs = useMemo<MissingSlugInfo[]>(() => {
+    const bySlug = new Map<string, Set<string>>();
     projects.forEach((project) => {
       extractMlhCandidateSlugs(project.opt_in_prizes ?? "").forEach((slug) => {
-        if (!configuredSlugs.has(slug)) {
-          slugs.add(slug);
-        }
+        if (configuredSlugs.has(slug) || hiddenSlugs.has(slug)) return;
+        const eventIds = bySlug.get(slug) ?? new Set<string>();
+        if (project.event_id) eventIds.add(project.event_id);
+        bySlug.set(slug, eventIds);
       });
     });
-    return Array.from(slugs).sort();
-  }, [projects, configuredSlugs]);
+    return Array.from(bySlug.entries())
+      .map(([slug, eventIds]) => ({
+        slug,
+        eventIds: Array.from(eventIds).sort((a, b) =>
+          (events.find((e) => e.id === a)?.name ?? "").localeCompare(
+            events.find((e) => e.id === b)?.name ?? "",
+          ),
+        ),
+      }))
+      .sort((a, b) => a.slug.localeCompare(b.slug));
+  }, [projects, configuredSlugs, hiddenSlugs, events]);
 
   const sortedCategories = useMemo(
     () =>
@@ -60,6 +91,33 @@ export function PrizeCategoriesPage() {
       ),
     [prizeCategories],
   );
+
+  // Projects only carry a denormalized snapshot of which catalog slugs they
+  // matched at CSV-import time, so adding/editing a category or alias here
+  // doesn't retroactively apply to already-imported projects on its own --
+  // re-derive standardized_opt_in_prizes for every project from its raw
+  // opt_in_prizes text (already stored, no CSV re-upload needed) and refresh
+  // the store so the projects table reflects it immediately.
+  const handleRecompute = async (options?: { silent?: boolean }) => {
+    setIsRecomputing(true);
+    try {
+      const { updated } = await recomputePrizeTracks();
+      const freshProjects = await getProjects();
+      setProjects(freshProjects);
+      if (!options?.silent || updated > 0) {
+        toast.success(
+          updated > 0
+            ? `Updated prize tracks on ${updated} project${updated === 1 ? "" : "s"}`
+            : "Prize tracks already up to date",
+        );
+      }
+    } catch (err) {
+      console.error("Failed to recompute prize tracks:", err);
+      toast.error("Failed to update projects' prize tracks");
+    } finally {
+      setIsRecomputing(false);
+    }
+  };
 
   const handleSaved = (saved: PrizeCategory) => {
     const exists = prizeCategories.some((c) => c.id === saved.id);
@@ -70,10 +128,51 @@ export function PrizeCategoriesPage() {
     } else {
       setPrizeCategories([...prizeCategories, saved]);
     }
+    void handleRecompute({ silent: true });
   };
 
   const handleDeleted = (deletedId: string) => {
     setPrizeCategories(prizeCategories.filter((c) => c.id !== deletedId));
+  };
+
+  const handleAddToExisting = async (slug: string, category: PrizeCategory) => {
+    const aliasSlugs = Array.from(
+      new Set([...(category.alias_slugs ?? []), slug]),
+    );
+    try {
+      const response = await fetch(`/api/prize-categories/${category.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ alias_slugs: aliasSlugs }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.error || "Failed to add slug to category");
+      }
+      const { prize_category } = await response.json();
+      handleSaved(prize_category);
+    } catch (err) {
+      console.error("Failed to add slug to existing category:", err);
+      toast.error("Failed to add slug to category");
+    }
+  };
+
+  const handleHide = async (slug: string) => {
+    try {
+      const response = await fetch("/api/ignored-prize-slugs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.error || "Failed to hide prize slug");
+      }
+      const { ignored_prize_slug } = await response.json();
+      setIgnoredPrizeSlugs([...ignoredPrizeSlugs, ignored_prize_slug]);
+    } catch (err) {
+      console.error("Failed to hide prize slug:", err);
+    }
   };
 
   return (
@@ -88,48 +187,40 @@ export function PrizeCategoriesPage() {
             against.
           </p>
         </div>
-        <Button
-          onClick={() => {
-            setCreatingFrom(null);
-            setIsCreateDialogOpen(true);
-          }}
-        >
-          <Plus className="w-4 h-4" />
-          New Prize Category
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => handleRecompute()}
+            disabled={isRecomputing}
+          >
+            <RefreshCw
+              className={`w-4 h-4 ${isRecomputing ? "animate-spin" : ""}`}
+            />
+            Sync Prize Tracks
+          </Button>
+          <Button
+            onClick={() => {
+              setCreatingFrom(null);
+              setIsCreateDialogOpen(true);
+            }}
+          >
+            <Plus className="w-4 h-4" />
+            New Prize Category
+          </Button>
+        </div>
       </div>
 
-      {missingSlugs.length > 0 && (
-        <Card className="p-5 border-orange-200 bg-orange-50/50 dark:border-orange-900 dark:bg-orange-950/20 space-y-3">
-          <div>
-            <h2 className="font-semibold text-gray-900 dark:text-white">
-              Missing Configuration
-            </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              These prize slugs show up on imported projects but have no
-              matching category yet, so review runs will mark them
-              &ldquo;configuration not found.&rdquo;
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {missingSlugs.map((slug) => (
-              <Button
-                key={slug}
-                variant="outline"
-                size="sm"
-                className="bg-white dark:bg-transparent"
-                onClick={() => {
-                  setCreatingFrom({ name: deslugify(slug), slug });
-                  setIsCreateDialogOpen(true);
-                }}
-              >
-                <Plus className="w-3 h-3" />
-                {deslugify(slug)}
-              </Button>
-            ))}
-          </div>
-        </Card>
-      )}
+      <MissingPrizeSlugsCard
+        missingSlugs={missingSlugs}
+        events={events}
+        prizeCategories={sortedCategories}
+        onCreateNew={(slug) => {
+          setCreatingFrom({ name: deslugify(slug), slug });
+          setIsCreateDialogOpen(true);
+        }}
+        onAddToExisting={handleAddToExisting}
+        onHide={handleHide}
+      />
 
       <div className="space-y-3">
         {sortedCategories.map((category) => (

@@ -83,6 +83,24 @@ export type Database = {
         }
         Relationships: []
       }
+      ignored_prize_slugs: {
+        Row: {
+          created_at: string
+          id: string
+          slug: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          slug: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          slug?: string
+        }
+        Relationships: []
+      }
       prize_categories: {
         Row: {
           alias_slugs: string[]

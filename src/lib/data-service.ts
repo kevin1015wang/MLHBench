@@ -6,6 +6,7 @@ type Event = Tables<"events">;
 type Project = Tables<"projects">;
 type PrizeCategory = Tables<"prize_categories">;
 type ProjectRanking = Tables<"project_rankings">;
+type IgnoredPrizeSlug = Tables<"ignored_prize_slugs">;
 
 export async function getEvents(): Promise<Event[]> {
   try {
@@ -82,6 +83,42 @@ export async function getProjectRankings(
     console.error("[DataService] Failed to fetch project rankings:", error);
     return [];
   }
+}
+
+export async function getIgnoredPrizeSlugs(): Promise<IgnoredPrizeSlug[]> {
+  const supabase = createClient();
+
+  try {
+    const { data, error } = await supabase
+      .from("ignored_prize_slugs")
+      .select("*")
+      .order("created_at", { ascending: true });
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error("[DataService] Failed to fetch ignored prize slugs:", error);
+    return [];
+  }
+}
+
+export async function recomputePrizeTracks(): Promise<{
+  updated: number;
+  failed: number;
+}> {
+  const response = await fetch("/api/projects/recompute-prize-tracks", {
+    method: "POST",
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null);
+    const message =
+      (errorBody && (errorBody.error as string)) ||
+      "Failed to recompute prize tracks";
+    throw new Error(message);
+  }
+
+  return response.json();
 }
 
 export async function startProjectReview(projectId: string) {
