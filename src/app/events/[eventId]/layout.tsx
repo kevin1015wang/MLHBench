@@ -14,6 +14,7 @@ export default function EventLayout({ children }: EventLayoutProps) {
     handleRunAnalysis,
     handleBatchRun,
     handleImportClick,
+    handleAddProjectClick,
     handleProjectClick,
   } = useDashboard();
 
@@ -23,6 +24,7 @@ export default function EventLayout({ children }: EventLayoutProps) {
         onRunAnalysis={handleRunAnalysis}
         onBatchRun={handleBatchRun}
         onImport={handleImportClick}
+        onAddProject={handleAddProjectClick}
         onProjectClick={handleProjectClick}
         eventId={activeEventId}
       />

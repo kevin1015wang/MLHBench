@@ -12,6 +12,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
+import { AddProjectDialog } from "@/components/projects/add-project-dialog";
 import { CSVImportDialog } from "@/components/projects/csv-import-dialog";
 import { ProjectDetailPane } from "@/components/projects/project-detail-pane";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
@@ -30,6 +31,7 @@ interface DashboardContextValue {
   handleRunAnalysis: (projectId: string) => Promise<void>;
   handleBatchRun: (projectIds: string[]) => Promise<void>;
   handleImportClick: () => void;
+  handleAddProjectClick: () => void;
 }
 
 const DashboardContext = createContext<DashboardContextValue | null>(null);
@@ -67,6 +69,7 @@ function DashboardContent({ children }: DashboardRootProps) {
 
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [isAddProjectDialogOpen, setIsAddProjectDialogOpen] = useState(false);
   // Allow us to optimistically clear the event when navigating back to /events
   const [overrideEventId, setOverrideEventId] = useState<string | null>();
 
@@ -273,6 +276,19 @@ function DashboardContent({ children }: DashboardRootProps) {
     // For now, let's assume Realtime handles it as per useRealtimeSubscription.
   };
 
+  const handleAddProjectClick = () => {
+    if (!activeEventId) {
+      toast.error("Please select an event first");
+      return;
+    }
+    setIsAddProjectDialogOpen(true);
+  };
+
+  const handleProjectAdded = () => {
+    toast.success("Project added");
+    // Realtime subscription picks up the new row, same as CSV import.
+  };
+
   const selectedEvent = events.find((e) => e.id === activeEventId);
   const selectedEventName = selectedEvent?.name;
 
@@ -305,6 +321,7 @@ function DashboardContent({ children }: DashboardRootProps) {
         handleRunAnalysis,
         handleBatchRun,
         handleImportClick,
+        handleAddProjectClick,
       }}
     >
       <AppShell selectedEvent={selectedEvent} selectedProject={selectedProject}>
@@ -341,6 +358,15 @@ function DashboardContent({ children }: DashboardRootProps) {
           hasExistingProjects={projects.some(
             (p) => p.event_id === activeEventId,
           )}
+        />
+      )}
+
+      {activeEventId && (
+        <AddProjectDialog
+          open={isAddProjectDialogOpen}
+          onOpenChange={setIsAddProjectDialogOpen}
+          eventId={activeEventId}
+          onCreated={handleProjectAdded}
         />
       )}
     </DashboardContext.Provider>

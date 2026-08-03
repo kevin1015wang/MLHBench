@@ -5,6 +5,7 @@ import type { Database } from "@/database.types";
 import { getGithubUrls } from "@/lib/github/utils";
 import { matchPrizeCategorySlugs } from "@/lib/prize-category-matching";
 import { createClient } from "@/lib/supabase/server";
+import { isUrl } from "@/lib/utils/string-utils";
 
 type ProjectInsert = Database["public"]["Tables"]["projects"]["Insert"];
 type CsvRecord = Record<string, string>;
@@ -232,17 +233,6 @@ function parseCsv(text: string) {
   }
 
   return result.data;
-}
-
-function isUrl(value: string) {
-  if (!value.trim()) return false;
-  const prefixed = value.startsWith("http") ? value : `https://${value}`;
-  try {
-    const url = new URL(prefixed);
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch {
-    return false;
-  }
 }
 
 function parseNumber(value: string) {

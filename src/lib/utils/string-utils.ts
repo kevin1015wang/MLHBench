@@ -21,3 +21,20 @@ export function slugify(text: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
+
+/**
+ * Checks whether a string is a well-formed http(s) URL, assuming an
+ * `https://` prefix if the scheme is omitted (e.g. "github.com/foo/bar").
+ * @param value - The string to check
+ * @returns Whether the string is a valid http(s) URL
+ */
+export function isUrl(value: string): boolean {
+  if (!value.trim()) return false;
+  const prefixed = value.startsWith("http") ? value : `https://${value}`;
+  try {
+    const url = new URL(prefixed);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}

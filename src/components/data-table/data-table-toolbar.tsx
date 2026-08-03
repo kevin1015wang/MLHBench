@@ -6,6 +6,7 @@ import {
   Download,
   Filter,
   Play,
+  Plus,
   RefreshCw,
   Search,
   Upload,
@@ -83,6 +84,7 @@ interface DataTableToolbarProps<TData> {
   onRunSelected?: (selectedIds: string[]) => void;
   onRerunFailed?: () => void;
   onImport?: () => void;
+  onAddProject?: () => void;
   viewMode?: ViewMode;
   onViewModeChange?: (mode: ViewMode) => void;
   allProcessed?: boolean;
@@ -129,6 +131,7 @@ export function DataTableToolbar<TData>({
   onRunSelected,
   onRerunFailed,
   onImport,
+  onAddProject,
   viewMode = "default",
   onViewModeChange,
   allProcessed = false,
@@ -801,6 +804,12 @@ export function DataTableToolbar<TData>({
                 Import CSV
               </>
             )}
+          </Button>
+        )}
+        {onAddProject && (
+          <Button onClick={onAddProject} variant="outline" className="gap-2">
+            <Plus className="h-4 w-4" />
+            Add Project
           </Button>
         )}
         <DropdownMenu>

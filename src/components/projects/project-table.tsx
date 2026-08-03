@@ -199,6 +199,7 @@ interface ProjectTableProps {
   readonly onRunAnalysis: (projectId: string) => void;
   readonly onBatchRun: (projectIds: string[]) => void;
   readonly onImport: () => void;
+  readonly onAddProject: () => void;
   readonly onProjectClick: (project: Project) => void;
   readonly onViewModeChange?: (viewMode: ViewMode) => void;
   readonly eventId?: string | null;
@@ -257,6 +258,7 @@ export function ProjectTable({
   onRunAnalysis,
   onBatchRun,
   onImport,
+  onAddProject,
   onProjectClick,
   onViewModeChange,
   eventId,
@@ -1422,6 +1424,7 @@ export function ProjectTable({
           onRunSelected={(ids) => onBatchRun(ids)}
           onRerunFailed={handleRerunFailed}
           onImport={viewMode === "judging" ? handleExportCSV : onImport}
+          onAddProject={onAddProject}
           viewMode={viewMode}
           onViewModeChange={setViewMode}
           allProcessed={allProcessed}

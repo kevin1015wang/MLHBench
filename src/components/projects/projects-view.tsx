@@ -20,6 +20,7 @@ interface ProjectsViewProps {
   readonly onRunAnalysis: (projectId: string) => void;
   readonly onBatchRun: (projectIds: string[]) => void;
   readonly onImport: () => void;
+  readonly onAddProject: () => void;
   readonly onProjectClick: (project: Project) => void;
   readonly eventId?: string | null;
 }
@@ -28,6 +29,7 @@ export function ProjectsView({
   onRunAnalysis,
   onBatchRun,
   onImport,
+  onAddProject,
   onProjectClick,
   eventId,
 }: ProjectsViewProps) {
@@ -293,6 +295,7 @@ export function ProjectsView({
           onRunAnalysis={onRunAnalysis}
           onBatchRun={onBatchRun}
           onImport={onImport}
+          onAddProject={onAddProject}
           onProjectClick={onProjectClick}
           eventId={activeEventId}
         />
