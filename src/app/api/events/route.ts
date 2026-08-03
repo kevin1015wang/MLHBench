@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth/require-role";
 import { getSession } from "@/lib/auth/session";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/utils/string-utils";
 
@@ -7,18 +9,46 @@ export async function GET(_req: Request) {
   try {
     const session = await getSession();
 
-    if (!session?.user?.email) {
+    if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const supabase = await createClient();
 
-    const { data: events, error } = await supabase
+    // Admins see every event; guests only see the ones they've been
+    // granted. Two plain queries rather than an embedded Postgres join --
+    // simpler and matches this codebase's existing query style.
+    let eventIdFilter: string[] | null = null;
+    if (session.user.role === "guest" && session.user.guestId) {
+      const adminSupabase = createAdminClient();
+      const { data: grants, error: grantsError } = await adminSupabase
+        .from("guest_event_access")
+        .select("event_id")
+        .eq("guest_id", session.user.guestId);
+
+      if (grantsError) {
+        console.error("Error fetching guest event access:", grantsError);
+        return NextResponse.json(
+          { error: "Failed to fetch events" },
+          { status: 500 },
+        );
+      }
+
+      eventIdFilter = grants.map((grant) => grant.event_id);
+      if (eventIdFilter.length === 0) {
+        return NextResponse.json({ events: [] });
+      }
+    }
+
+    let query = supabase
       .from("events")
       .select("*")
-      .order("created_at", {
-        ascending: false,
-      });
+      .order("created_at", { ascending: false });
+    if (eventIdFilter) {
+      query = query.in("id", eventIdFilter);
+    }
+
+    const { data: events, error } = await query;
 
     if (error) {
       console.error("Error fetching events:", error);
@@ -41,10 +71,8 @@ export async function GET(_req: Request) {
 export async function POST(request: Request) {
   try {
     const session = await getSession();
-
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const adminError = requireAdmin(session);
+    if (adminError) return adminError;
 
     const body = await request.json().catch(() => null);
     const name = typeof body?.name === "string" ? body.name.trim() : "";

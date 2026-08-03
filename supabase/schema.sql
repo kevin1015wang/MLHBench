@@ -62,6 +62,60 @@ create table events (
 create index events_created_at_idx on events(created_at desc);
 create index events_slug_idx on events(slug);
 
+-- Guest accounts: a second, lightweight identity type alongside the single
+-- Google-authenticated admin (Kevin, gated by ALLOWED_LOGIN_EMAIL -- see
+-- src/lib/auth/session.ts). Guests sign up themselves with a username and
+-- password; a fresh account has zero event access and zero AI run quota
+-- until the admin grants both via the guest-management page, so an
+-- unvetted signup is inert by default.
+create table guests (
+  id uuid primary key default gen_random_uuid(),
+  username text not null,
+  password_hash text not null,
+  password_salt text not null,
+  display_name text not null default '',
+
+  ai_run_quota integer not null default 0,
+  ai_run_count integer not null default 0,
+
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+
+  constraint guests_username_unique unique (username)
+);
+
+-- Event-level access grants: which whole events a guest can see/act on.
+-- Deliberately coarse (not per-project) -- see the guest permissions model
+-- in the app.
+create table guest_event_access (
+  id uuid primary key default gen_random_uuid(),
+  guest_id uuid not null references guests(id) on delete cascade,
+  event_id uuid not null references events(id) on delete cascade,
+  created_at timestamptz not null default now(),
+
+  constraint guest_event_access_unique unique (guest_id, event_id)
+);
+
+create index guest_event_access_guest_idx on guest_event_access(guest_id);
+
+-- Atomically charges one AI run against a guest's quota. Called from
+-- src/lib/auth/guest-access.ts via the service-role client instead of doing
+-- a read-then-write from application code, so the UPDATE's row lock is what
+-- actually prevents two concurrent requests from both squeaking past the
+-- quota boundary. `found` reflects whether the WHERE clause matched (quota
+-- was available) after the update ran.
+create or replace function charge_guest_ai_run(p_guest_id uuid)
+returns boolean
+language plpgsql
+as $$
+begin
+  update guests
+  set ai_run_count = ai_run_count + 1
+  where id = p_guest_id and ai_run_count < ai_run_quota;
+  return found;
+end;
+$$;
+
 create table projects (
   id uuid primary key default gen_random_uuid(),
   event_id uuid not null references events(id) on delete cascade,
@@ -182,9 +236,9 @@ create table project_rankings (
 create index project_rankings_category_idx on project_rankings(prize_category_id, rank);
 create index project_rankings_event_idx on project_rankings(event_id);
 
--- Anon/publishable key is used for all reads and writes (no service-role key
--- in the app), so RLS must permit the anon role to select/insert/update/delete
--- on all tables. See README "Notes & tips".
+-- Anon/publishable key is used for almost all reads and writes (no
+-- service-role key for these tables), so RLS must permit the anon role to
+-- select/insert/update/delete on them. See README "Notes & tips".
 alter table events enable row level security;
 alter table projects enable row level security;
 alter table prize_categories enable row level security;
@@ -196,6 +250,16 @@ create policy "anon full access" on projects for all to anon using (true) with c
 create policy "anon full access" on prize_categories for all to anon using (true) with check (true);
 create policy "anon full access" on project_rankings for all to anon using (true) with check (true);
 create policy "anon full access" on ignored_prize_slugs for all to anon using (true) with check (true);
+
+-- guests/guest_event_access are the one exception: they gate authentication
+-- and per-guest AI run quotas, so an "anon full access" policy here would
+-- let any guest grant themselves unlimited quota or access to any event via
+-- a raw Supabase call, bypassing every app-level check entirely. RLS is
+-- enabled with NO policies defined for anon, which defaults to deny -- these
+-- tables are only ever read/written server-side via the service-role client
+-- (src/lib/supabase/admin.ts), which bypasses RLS.
+alter table guests enable row level security;
+alter table guest_event_access enable row level security;
 
 -- The app's live "Processing Projects" view relies on Supabase Realtime
 -- (useRealtimeSubscription) pushing postgres_changes events for status/result

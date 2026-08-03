@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import Papa from "papaparse";
 
 import type { Database } from "@/database.types";
+import { requireEventAccess } from "@/lib/auth/guest-access";
+import { getSession } from "@/lib/auth/session";
 import { getGithubUrls } from "@/lib/github/utils";
 import { matchPrizeCategorySlugs } from "@/lib/prize-category-matching";
 import { createClient } from "@/lib/supabase/server";
@@ -16,6 +18,8 @@ type PrizeCategory = {
 
 export async function POST(request: Request) {
   try {
+    const session = await getSession();
+
     const formData = await request.formData();
     const file = formData.get("file");
     const eventId = formData.get("event_id");
@@ -26,6 +30,9 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+
+    const accessError = await requireEventAccess(session, eventId.trim());
+    if (accessError) return accessError;
 
     if (!(file instanceof File)) {
       return NextResponse.json(

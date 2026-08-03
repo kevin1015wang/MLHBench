@@ -23,6 +23,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
+import { useSession } from "@/hooks/use-session";
 import { type Event, useStore } from "@/lib/store";
 import { DeleteEventDialog } from "./delete-event-dialog";
 import { EditEventDialog } from "./edit-event-dialog";
@@ -149,6 +150,8 @@ function EventImage({
 
 export function EventsPage() {
   const { events, projects, setEvents, setProjects } = useStore();
+  const { user } = useSession();
+  const isAdmin = user?.role === "admin";
   const [searchQuery, setSearchQuery] = useState("");
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
@@ -216,17 +219,21 @@ export function EventsPage() {
           </p>
         </div>
 
-        <div className="shrink-0 flex gap-2">
-          <Button onClick={() => setIsNewEventDialogOpen(true)}>
-            New Event
-          </Button>
-        </div>
+        {isAdmin && (
+          <div className="shrink-0 flex gap-2">
+            <Button onClick={() => setIsNewEventDialogOpen(true)}>
+              New Event
+            </Button>
+          </div>
+        )}
       </div>
 
-      <NewEventDialog
-        open={isNewEventDialogOpen}
-        onOpenChange={setIsNewEventDialogOpen}
-      />
+      {isAdmin && (
+        <NewEventDialog
+          open={isNewEventDialogOpen}
+          onOpenChange={setIsNewEventDialogOpen}
+        />
+      )}
 
       <DeleteEventDialog
         event={eventToDelete}
@@ -314,30 +321,34 @@ export function EventsPage() {
                               </Badge>
                             );
                           })()}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:text-gray-200 dark:hover:bg-gray-800"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setEditingEvent(event);
-                          }}
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-gray-400 hover:text-destructive hover:bg-destructive/10"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setEventToDelete(event);
-                          }}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        {isAdmin && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:text-gray-200 dark:hover:bg-gray-800"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setEditingEvent(event);
+                              }}
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-gray-400 hover:text-destructive hover:bg-destructive/10"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setEventToDelete(event);
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
 
@@ -441,30 +452,34 @@ export function EventsPage() {
                             <Badge variant="secondary" className="shrink-0">
                               {status.label}
                             </Badge>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:text-gray-200 dark:hover:bg-gray-800"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setEditingEvent(event);
-                              }}
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-gray-400 hover:text-destructive hover:bg-destructive/10"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setEventToDelete(event);
-                              }}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
+                            {isAdmin && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:text-gray-200 dark:hover:bg-gray-800"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setEditingEvent(event);
+                                  }}
+                                >
+                                  <Pencil className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-7 w-7 text-gray-400 hover:text-destructive hover:bg-destructive/10"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setEventToDelete(event);
+                                  }}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </div>
 

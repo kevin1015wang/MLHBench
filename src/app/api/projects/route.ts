@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireEventAccess } from "@/lib/auth/guest-access";
 import { getSession } from "@/lib/auth/session";
 import { getGithubUrls } from "@/lib/github/utils";
 import { createClient } from "@/lib/supabase/server";
@@ -8,14 +9,11 @@ import { isUrl } from "@/lib/utils/string-utils";
 // never went through the CSV import. Deliberately minimal: only
 // project_title is required, everything else (table, links, one contact,
 // tracks) is optional, matching how CSV-imported projects can have any of
-// these fields blank too.
+// these fields blank too. Available to admins for any event, and to guests
+// for events they've been granted access to.
 export async function POST(request: Request) {
   try {
     const session = await getSession();
-
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
     const body = await request.json().catch(() => null);
 
@@ -30,6 +28,10 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+
+    const accessError = await requireEventAccess(session, eventId);
+    if (accessError) return accessError;
+
     if (!projectTitle) {
       return NextResponse.json(
         { error: "project_title is required" },

@@ -83,6 +83,78 @@ export type Database = {
         }
         Relationships: []
       }
+      guests: {
+        Row: {
+          ai_run_count: number
+          ai_run_quota: number
+          created_at: string
+          display_name: string
+          id: string
+          password_hash: string
+          password_salt: string
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          ai_run_count?: number
+          ai_run_quota?: number
+          created_at?: string
+          display_name?: string
+          id?: string
+          password_hash: string
+          password_salt: string
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          ai_run_count?: number
+          ai_run_quota?: number
+          created_at?: string
+          display_name?: string
+          id?: string
+          password_hash?: string
+          password_salt?: string
+          updated_at?: string
+          username?: string
+        }
+        Relationships: []
+      }
+      guest_event_access: {
+        Row: {
+          created_at: string
+          event_id: string
+          guest_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          guest_id: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          guest_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_event_access_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_event_access_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ignored_prize_slugs: {
         Row: {
           created_at: string
@@ -328,7 +400,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      charge_guest_ai_run: {
+        Args: {
+          p_guest_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       complexity_rating: "invalid" | "beginner" | "intermediate" | "advanced"

@@ -1,30 +1,30 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/require-role";
 import { getSession } from "@/lib/auth/session";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function DELETE(
   _request: Request,
-  { params }: { params: Promise<{ slug: string }> },
+  { params }: { params: Promise<{ guestId: string; eventId: string }> },
 ) {
   try {
     const session = await getSession();
     const adminError = requireAdmin(session);
     if (adminError) return adminError;
 
-    const { slug } = await params;
+    const { guestId, eventId } = await params;
 
-    const supabase = await createClient();
-
+    const supabase = createAdminClient();
     const { error } = await supabase
-      .from("ignored_prize_slugs")
+      .from("guest_event_access")
       .delete()
-      .eq("slug", slug);
+      .eq("guest_id", guestId)
+      .eq("event_id", eventId);
 
     if (error) {
-      console.error("Error unhiding prize slug:", error);
+      console.error("Error revoking guest event access:", error);
       return NextResponse.json(
-        { error: "Failed to unhide prize slug" },
+        { error: "Failed to revoke access" },
         { status: 500 },
       );
     }

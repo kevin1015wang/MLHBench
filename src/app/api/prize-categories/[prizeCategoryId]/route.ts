@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth/require-role";
 import { getSession } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/utils/string-utils";
@@ -9,10 +10,8 @@ export async function PATCH(
 ) {
   try {
     const session = await getSession();
-
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const adminError = requireAdmin(session);
+    if (adminError) return adminError;
 
     const { prizeCategoryId } = await params;
     const body = await request.json().catch(() => null);
@@ -110,10 +109,8 @@ export async function DELETE(
 ) {
   try {
     const session = await getSession();
-
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const adminError = requireAdmin(session);
+    if (adminError) return adminError;
 
     const { prizeCategoryId } = await params;
 

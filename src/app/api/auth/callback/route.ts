@@ -105,6 +105,9 @@ export async function GET(req: NextRequest) {
         lastName: profile.family_name || fallbackLastNameParts.join(" ") || "",
         email: profile.email,
         avatarUrl: profile.picture || null,
+        // Only ALLOWED_LOGIN_EMAIL can ever complete this flow (checked
+        // above), so anyone who gets here is the admin.
+        role: "admin",
       },
     }),
   );

@@ -1,4 +1,9 @@
-import { createHmac, randomBytes } from "node:crypto";
+import {
+  createHmac,
+  randomBytes,
+  scryptSync,
+  timingSafeEqual,
+} from "node:crypto";
 import { cookies } from "next/headers";
 
 export interface SessionUser {
@@ -7,11 +12,18 @@ export interface SessionUser {
   lastName: string;
   email?: string;
   avatarUrl?: string | null;
+  // "admin" is Kevin, gated by ALLOWED_LOGIN_EMAIL via Google OAuth.
+  // "guest" is a self-registered username/password account, scoped to
+  // whichever events the admin has granted via guest_event_access.
+  role: "admin" | "guest";
+  guestId?: string;
 }
 
 export interface SessionData {
   user: SessionUser;
-  accessToken: string;
+  // Only set for Google-authenticated (admin) sessions; guests have no
+  // OAuth token. Already unused elsewhere in the app after login regardless.
+  accessToken?: string;
   refreshToken?: string;
   expiresAt: number;
 }
@@ -130,7 +142,7 @@ export const toSessionData = ({
   refresh_token,
   user,
 }: {
-  access_token: string;
+  access_token?: string;
   refresh_token?: string;
   user: SessionUser;
 }): SessionData => ({
@@ -142,3 +154,26 @@ export const toSessionData = ({
   // there's no reason the app session should die when it does.
   expiresAt: Date.now() + SESSION_TTL_MS,
 });
+
+// Password hashing for guest accounts, via Node's built-in scrypt -- no new
+// dependency, matching this file's existing dependency-free crypto style
+// (HMAC session signing above). A per-password random salt means two
+// identical passwords never produce the same hash.
+const SCRYPT_KEY_LENGTH = 64;
+
+export const hashPassword = (password: string) => {
+  const salt = randomBytes(16).toString("hex");
+  const hash = scryptSync(password, salt, SCRYPT_KEY_LENGTH).toString("hex");
+  return { hash, salt };
+};
+
+export const verifyPassword = (
+  password: string,
+  hash: string,
+  salt: string,
+) => {
+  const candidate = scryptSync(password, salt, SCRYPT_KEY_LENGTH);
+  const expected = Buffer.from(hash, "hex");
+  if (candidate.length !== expected.length) return false;
+  return timingSafeEqual(candidate, expected);
+};

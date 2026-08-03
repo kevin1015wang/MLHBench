@@ -1,4 +1,6 @@
 import { after, NextResponse } from "next/server";
+import { chargeGuestAiRun, requireEventAccess } from "@/lib/auth/guest-access";
+import { getSession } from "@/lib/auth/session";
 import { startProjectReview } from "@/lib/review/project-review";
 import type { ProjectWithEvent } from "@/lib/review/types";
 import { createClient } from "@/lib/supabase/server";
@@ -7,6 +9,8 @@ const POSTGREST_ERROR_NO_ROWS = "PGRST116";
 
 export async function POST(request: Request) {
   try {
+    const session = await getSession();
+
     const body = await request.json().catch(() => null);
     const projectId = body?.project_id;
 
@@ -38,6 +42,21 @@ export async function POST(request: Request) {
         { error: "Failed to load project" },
         { status: 500 },
       );
+    }
+
+    const accessError = await requireEventAccess(session, project.event_id);
+    if (accessError) return accessError;
+
+    // Admins run unlimited; guests draw from a fixed quota, charged upfront
+    // (no refund if the run later fails -- simplest correct behavior).
+    if (session?.user.role === "guest" && session.user.guestId) {
+      const charged = await chargeGuestAiRun(session.user.guestId);
+      if (!charged) {
+        return NextResponse.json(
+          { error: "AI run quota exceeded" },
+          { status: 403 },
+        );
+      }
     }
 
     after(() =>

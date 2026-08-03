@@ -1,6 +1,6 @@
 "use client";
 
-import { Award, LogOut } from "lucide-react";
+import { Award, LogOut, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { BenchLogo } from "@/components/icons/bench-logo";
@@ -35,6 +35,7 @@ export function TopBar({ selectedEvent, selectedProject }: TopBarProps) {
   const router = useRouter();
   const { user, isLoading } = useSession();
   const isEventsPage = pathname === "/events";
+  const isAdmin = user?.role === "admin";
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -145,16 +146,29 @@ export function TopBar({ selectedEvent, selectedProject }: TopBarProps) {
                 )}
               </div>
             </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link
-                href="/prize-categories"
-                className="cursor-pointer flex items-center"
-              >
-                <Award className="mr-2 h-4 w-4 text-current" />
-                Prize Categories
-              </Link>
-            </DropdownMenuItem>
+            {isAdmin && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link
+                    href="/prize-categories"
+                    className="cursor-pointer flex items-center"
+                  >
+                    <Award className="mr-2 h-4 w-4 text-current" />
+                    Prize Categories
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link
+                    href="/admin/guests"
+                    className="cursor-pointer flex items-center"
+                  >
+                    <Users className="mr-2 h-4 w-4 text-current" />
+                    Manage Guests
+                  </Link>
+                </DropdownMenuItem>
+              </>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={handleLogout}

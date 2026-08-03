@@ -8,16 +8,16 @@ import { Label } from "@/components/ui/label";
 import { getSession } from "@/lib/auth/session";
 
 export const metadata: Metadata = {
-  title: "Sign in | Bench",
+  title: "Create guest account | Bench",
 };
 
 export const dynamic = "force-dynamic";
 
-interface LoginPageProps {
+interface SignupPageProps {
   readonly searchParams?: Promise<{ error?: string }>;
 }
 
-export default async function LoginPage(props: LoginPageProps) {
+export default async function SignupPage(props: SignupPageProps) {
   const searchParams = await props.searchParams;
   const session = await getSession();
 
@@ -28,32 +28,16 @@ export default async function LoginPage(props: LoginPageProps) {
   const error = searchParams?.error;
 
   let errorMessage: string | undefined;
-  if (error === "missing_code") {
+  if (error === "invalid_username") {
     errorMessage =
-      "We didn't receive a code back from Google. Try signing in again.";
-  } else if (error === "state_mismatch") {
-    errorMessage = "Login failed: security check didn't match. Please retry.";
-  } else if (error === "token_exchange_failed") {
-    errorMessage = "Unable to exchange the code for a token.";
-  } else if (error === "profile_fetch_failed") {
-    errorMessage = "Could not load your Google profile.";
-  } else if (error === "no_access_token") {
-    errorMessage = "No access token returned from Google.";
-  } else if (error === "unauthorized_email") {
-    errorMessage = "This account is not allowed to access Bench.";
-  } else if (error === "email_not_verified") {
-    errorMessage = "Your Google email address must be verified.";
-  } else if (error === "invalid_credentials") {
-    errorMessage = "Incorrect username or password.";
+      "Username must be 3-32 characters (letters, numbers, _ or -).";
+  } else if (error === "weak_password") {
+    errorMessage = "Password must be at least 8 characters.";
+  } else if (error === "username_taken") {
+    errorMessage = "That username is already taken.";
   } else if (error) {
-    errorMessage = "We couldn't complete login. Please try again.";
+    errorMessage = "We couldn't create your account. Please try again.";
   }
-
-  const playfulBench = Math.random() < 0.2;
-  const brandName = playfulBench ? "Benches" : "Bench";
-  const brandColorClass = playfulBench
-    ? "text-(--mlh-red)"
-    : "text-(--mlh-dark-grey) dark:text-(--mlh-white)";
 
   return (
     <div className="min-h-svh bg-background text-foreground">
@@ -71,11 +55,9 @@ export default async function LoginPage(props: LoginPageProps) {
 
         <div className="flex flex-col gap-12 p-8 sm:p-12 lg:order-2 lg:p-16">
           <div className="flex items-center gap-3 self-left">
-            <BenchLogo className={`w-8 h-4 ${brandColorClass}`} />
-            <h1
-              className={`text-2xl font-bold font-headline ${brandColorClass}`}
-            >
-              {brandName}
+            <BenchLogo className="w-8 h-4 text-(--mlh-dark-grey) dark:text-(--mlh-white)" />
+            <h1 className="text-2xl font-bold font-headline text-(--mlh-dark-grey) dark:text-(--mlh-white)">
+              Bench
             </h1>
           </div>
 
@@ -83,10 +65,11 @@ export default async function LoginPage(props: LoginPageProps) {
             <div className="w-full max-w-md space-y-8 mx-auto text-center">
               <div className="space-y-2">
                 <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-                  Sign in to Bench
+                  Create a guest account
                 </h1>
                 <p className="text-sm text-muted-foreground">
-                  One step to access events and review projects.
+                  You&apos;ll be able to sign in once created, but won&apos;t
+                  see any events until the organizer grants you access.
                 </p>
               </div>
 
@@ -97,29 +80,18 @@ export default async function LoginPage(props: LoginPageProps) {
               )}
 
               <form
-                action="/api/auth/login"
-                method="get"
-                className="flex flex-col items-center space-y-4"
-              >
-                <Button
-                  type="submit"
-                  className="h-11 w-full max-w-xs bg-[#1a73e8] text-base font-semibold text-white transition hover:bg-[#1a73e8]/90"
-                >
-                  Continue with Google
-                </Button>
-              </form>
-
-              <div className="flex items-center gap-3 max-w-xs mx-auto w-full">
-                <div className="h-px flex-1 bg-border" />
-                <span className="text-xs text-muted-foreground">or</span>
-                <div className="h-px flex-1 bg-border" />
-              </div>
-
-              <form
-                action="/api/auth/guest-login"
+                action="/api/auth/guest-signup"
                 method="post"
                 className="flex flex-col items-stretch space-y-3 max-w-xs mx-auto w-full text-left"
               >
+                <div className="space-y-1">
+                  <Label htmlFor="display_name">Display Name</Label>
+                  <Input
+                    id="display_name"
+                    name="display_name"
+                    autoComplete="name"
+                  />
+                </div>
                 <div className="space-y-1">
                   <Label htmlFor="username">Username</Label>
                   <Input
@@ -135,24 +107,21 @@ export default async function LoginPage(props: LoginPageProps) {
                     id="password"
                     name="password"
                     type="password"
-                    autoComplete="current-password"
+                    autoComplete="new-password"
+                    minLength={8}
                     required
                   />
                 </div>
-                <Button type="submit" variant="outline" className="h-11">
-                  Sign in as guest
+                <Button type="submit" className="h-11">
+                  Create account
                 </Button>
               </form>
 
               <p className="text-xs text-muted-foreground">
-                New guest?{" "}
-                <a href="/signup" className="underline hover:text-foreground">
-                  Create a guest account
+                Already have an account?{" "}
+                <a href="/login" className="underline hover:text-foreground">
+                  Sign in
                 </a>
-              </p>
-
-              <p className="text-xs text-muted-foreground">
-                You must be logged in to access Bench.
               </p>
             </div>
           </div>

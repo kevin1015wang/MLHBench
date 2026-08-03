@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth/require-role";
 import { getSession } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/utils/string-utils";
@@ -6,10 +7,8 @@ import { slugify } from "@/lib/utils/string-utils";
 export async function POST(request: Request) {
   try {
     const session = await getSession();
-
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const adminError = requireAdmin(session);
+    if (adminError) return adminError;
 
     const body = await request.json().catch(() => null);
     const slug =
