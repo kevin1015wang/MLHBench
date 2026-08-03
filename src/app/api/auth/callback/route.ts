@@ -99,7 +99,6 @@ export async function GET(req: NextRequest) {
     toSessionData({
       access_token: tokenJson.access_token,
       refresh_token: tokenJson.refresh_token,
-      expires_in: tokenJson.expires_in ?? 3600,
       user: {
         id: profile.sub,
         firstName: profile.given_name || fallbackFirstName || "User",

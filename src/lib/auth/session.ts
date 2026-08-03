@@ -128,16 +128,17 @@ export const buildRedirectUri = () => {
 export const toSessionData = ({
   access_token,
   refresh_token,
-  expires_in,
   user,
 }: {
   access_token: string;
   refresh_token?: string;
-  expires_in: number;
   user: SessionUser;
 }): SessionData => ({
   accessToken: access_token,
   refreshToken: refresh_token,
   user,
-  expiresAt: Date.now() + expires_in * 1000,
+  // The app session's own TTL, not Google's access-token expiry: the access
+  // token is only used once, right after login, to fetch the profile, so
+  // there's no reason the app session should die when it does.
+  expiresAt: Date.now() + SESSION_TTL_MS,
 });
