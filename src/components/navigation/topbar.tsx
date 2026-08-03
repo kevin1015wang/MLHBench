@@ -2,7 +2,7 @@
 
 import { Award, LogOut, Menu } from "lucide-react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { BenchLogo } from "@/components/icons/bench-logo";
 import { NotificationDrawer } from "@/components/navigation/notification-drawer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -37,8 +37,15 @@ export function TopBar({
   onMenuClick,
 }: TopBarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, isLoading } = useSession();
   const isEventsPage = pathname === "/events";
+
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+    router.refresh();
+  };
 
   const fullName = isLoading
     ? "Loading..."
@@ -171,14 +178,12 @@ export function TopBar({
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link
-                href="/api/auth/logout"
-                className="cursor-pointer flex items-center"
-              >
-                <LogOut className="mr-2 h-4 w-4 text-current" />
-                Log out
-              </Link>
+            <DropdownMenuItem
+              onClick={handleLogout}
+              className="cursor-pointer flex items-center"
+            >
+              <LogOut className="mr-2 h-4 w-4 text-current" />
+              Log out
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
