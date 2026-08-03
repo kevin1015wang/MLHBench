@@ -190,6 +190,14 @@ function mapRecordToProject(
   project.submitter_last_name = record["Submitter Last Name"] || null;
   project.submitter_email = record["Submitter Email"] || null;
   project.notes = record.Notes || null;
+  // Table assignments aren't part of Devpost's standard export -- some
+  // events add their own "Table" column (e.g. from a separate seating
+  // spreadsheet merged into the CSV) to pre-assign judging tables. Only
+  // present some of the time, so this is a no-op when the column is absent.
+  // "Table Number" is also accepted since that's what this app's own CSV
+  // export (see csv-export.ts) calls the same field.
+  project.table_number =
+    record.Table?.trim() || record["Table Number"]?.trim() || null;
 
   project.project_created_at = parseDate(record["Project Created At"]);
 

@@ -715,6 +715,28 @@ export function ProjectTable({
           <DataTableColumnHeader column={column} label="Table" />
         ),
         cell: ({ row }) => <TableNumberCell project={row.original} />,
+        // Table numbers are free text (an admin can type anything into the
+        // cell), but they're almost always plain integers -- the default
+        // TanStack sort does a lexicographic string compare, which orders
+        // "10" before "4". Compare numerically when both sides parse as
+        // numbers, falling back to natural string sort (e.g. for "A2" vs
+        // "A10") otherwise. Blanks sort to the end of ascending order (and,
+        // since TanStack flips the comparator's sign for desc, to the start
+        // of descending order).
+        sortingFn: (rowA, rowB, columnId) => {
+          const a = (rowA.getValue(columnId) as string | null) ?? "";
+          const b = (rowB.getValue(columnId) as string | null) ?? "";
+          if (!a && !b) return 0;
+          if (!a) return 1;
+          if (!b) return -1;
+
+          const numA = Number(a);
+          const numB = Number(b);
+          if (!Number.isNaN(numA) && !Number.isNaN(numB)) {
+            return numA - numB;
+          }
+          return a.localeCompare(b, undefined, { numeric: true });
+        },
         enableSorting: true,
         size: 100,
       },
@@ -1210,12 +1232,13 @@ export function ProjectTable({
     data: filteredData,
     columns,
     initialState: {
-      // Use persisted sorting if available so sort direction is restored per event
-      sorting:
-        persistedState.sorting?.map((sort) => ({
-          id: sort.id,
-          desc: !!sort.desc,
-        })) ?? [],
+      // Use persisted sorting if available so sort direction is restored per
+      // event; otherwise default to table order, since that's how judges
+      // physically walk the room.
+      sorting: persistedState.sorting?.map((sort) => ({
+        id: sort.id,
+        desc: !!sort.desc,
+      })) ?? [{ id: "table_number", desc: false }],
       columnPinning: {
         left: ["select", "favorite"],
         right: viewMode === "judging" ? ["notes"] : ["actions", "notes"],
@@ -1275,20 +1298,17 @@ export function ProjectTable({
     }
   }, [eventId, persistedState.columnVisibility, table]);
 
-  // Restore sorting from persisted state when eventId changes
+  // Restore sorting from persisted state when eventId changes, falling back
+  // to table order (same default as the initial mount) when this event has
+  // no persisted sort of its own.
   React.useEffect(() => {
-    if (
-      eventId !== lastRestoredSortingEventIdRef.current &&
-      persistedState.sorting &&
-      table
-    ) {
+    if (eventId !== lastRestoredSortingEventIdRef.current && table) {
       lastRestoredSortingEventIdRef.current = eventId;
-      // Apply the persisted sorting state to the table
       table.setSorting(
-        persistedState.sorting.map((sort) => ({
+        persistedState.sorting?.map((sort) => ({
           id: sort.id,
           desc: !!sort.desc,
-        })),
+        })) ?? [{ id: "table_number", desc: false }],
       );
     }
   }, [eventId, persistedState.sorting, table]);
