@@ -27,6 +27,16 @@ export async function POST(request: Request) {
           .map((w: string) => w.trim().toLowerCase())
           .filter(Boolean)
       : [];
+    const aliasSlugs = Array.isArray(body?.alias_slugs)
+      ? Array.from(
+          new Set(
+            body.alias_slugs
+              .filter((w: unknown): w is string => typeof w === "string")
+              .map((w: string) => slugify(w))
+              .filter(Boolean),
+          ),
+        )
+      : [];
 
     if (!name) {
       return NextResponse.json({ error: "name is required" }, { status: 400 });
@@ -51,6 +61,7 @@ export async function POST(request: Request) {
         slug,
         system_prompt: systemPrompt,
         find_words: findWords,
+        alias_slugs: aliasSlugs,
       })
       .select()
       .single();

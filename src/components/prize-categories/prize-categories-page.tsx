@@ -135,6 +135,19 @@ export function PrizeCategoriesPage() {
                     {category.slug}
                   </Badge>
                 </div>
+                {(category.alias_slugs ?? []).length > 0 && (
+                  <div className="flex flex-wrap gap-1 pt-1">
+                    {(category.alias_slugs ?? []).map((alias) => (
+                      <Badge
+                        key={alias}
+                        variant="outline"
+                        className="text-xs font-mono"
+                      >
+                        {alias}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
                 {category.find_words.length > 0 && (
                   <div className="flex flex-wrap gap-1 pt-1">
                     {category.find_words.map((word) => (

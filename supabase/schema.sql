@@ -127,6 +127,11 @@ create table prize_categories (
   slug text not null,
 
   find_words text[] not null default '{}',
+  -- Additional slugs (e.g. derived from a different event's differently-
+  -- worded Devpost prize name) that should also resolve to this category
+  -- during CSV import, alongside the canonical `slug`. See
+  -- matchPrizeCategories() in src/app/api/projects/import-csv/route.ts.
+  alias_slugs text[] not null default '{}',
 
   system_prompt text not null,
 

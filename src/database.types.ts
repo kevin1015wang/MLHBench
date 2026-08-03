@@ -85,6 +85,7 @@ export type Database = {
       }
       prize_categories: {
         Row: {
+          alias_slugs: string[]
           created_at: string
           find_words: string[]
           id: string
@@ -95,6 +96,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          alias_slugs?: string[]
           created_at?: string
           find_words?: string[]
           id?: string
@@ -105,6 +107,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          alias_slugs?: string[]
           created_at?: string
           find_words?: string[]
           id?: string

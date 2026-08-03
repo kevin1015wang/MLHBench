@@ -10,7 +10,7 @@ type ProjectInsert = Database["public"]["Tables"]["projects"]["Insert"];
 type CsvRecord = Record<string, string>;
 type PrizeCategory = {
   slug: string;
-  name: string;
+  alias_slugs: string[];
 };
 
 export async function POST(request: Request) {
@@ -101,7 +101,7 @@ export async function POST(request: Request) {
 
     const { data: prizeCategories, error: prizeError } = await supabase
       .from("prize_categories")
-      .select("slug, name");
+      .select("slug, alias_slugs");
 
     if (prizeError) {
       console.error("Failed to fetch prize categories", prizeError);
@@ -258,11 +258,16 @@ function parseList(value: string) {
     .filter(Boolean);
 }
 
-// Devpost's "Opt-In Prizes" column is a comma-separated list of
-// "<Sponsor>: <Prize Name>" entries. MLH-sponsored prizes are the ones whose
-// sponsor prefix is "MLH" (e.g. "MLH: Best Use of Gemini API"), as opposed to
-// other sponsors at the hackathon (e.g. "Deloitte: Green AI"). We only
-// standardize the MLH ones, since prize review is scoped to MLH prize tracks.
+// Devpost's "Opt-In Prizes" column format varies by event: some prefix every
+// entry with "<Sponsor>: " (e.g. "MLH: Best Use of Gemini API", "Deloitte:
+// Green AI"), others just list bare prize names with no sponsor info at all
+// (e.g. "Best Use of Gemini API"). We only want MLH-sponsored prizes, since
+// prize review is scoped to MLH prize tracks -- so entries explicitly
+// prefixed with a *different* sponsor are skipped, while both MLH-prefixed
+// and un-prefixed entries are treated as MLH-prize candidates and checked
+// against the catalog. A category matches if the slugified raw name equals
+// either its canonical `slug` or one of its `alias_slugs` -- otherwise the
+// slugified name becomes a new, uncatalogued slug.
 function matchPrizeCategories(
   optInPrizes: string,
   categories: PrizeCategory[],
@@ -272,14 +277,20 @@ function matchPrizeCategories(
 
   optInPrizes.split(",").forEach((entry) => {
     const trimmed = entry.trim();
-    if (!trimmed || !trimmed.toLowerCase().includes("mlh")) return;
+    if (!trimmed) return;
 
-    const name = trimmed.replace(/^mlh\s*[:-]\s*/i, "").trim() || trimmed;
+    const prefixMatch = trimmed.match(/^([^:]+):\s*(.+)$/);
+    if (prefixMatch && !/^mlh$/i.test(prefixMatch[1].trim())) return;
+
+    const name = prefixMatch ? prefixMatch[2].trim() : trimmed;
+    const candidateSlug = slugify(name);
     const catalogMatch = categories.find(
-      (category) => category.name.toLowerCase() === name.toLowerCase(),
+      (category) =>
+        category.slug === candidateSlug ||
+        category.alias_slugs.includes(candidateSlug),
     );
 
-    matched.add(catalogMatch ? catalogMatch.slug : slugify(name));
+    matched.add(catalogMatch ? catalogMatch.slug : candidateSlug);
   });
 
   return Array.from(matched);

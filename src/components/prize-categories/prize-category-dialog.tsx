@@ -34,8 +34,11 @@ export function PrizeCategoryDialog({
   const isEditing = prizeCategory !== null;
 
   const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [slugTouched, setSlugTouched] = useState(false);
+  // Comma-separated; the first entry is the canonical slug, any others are
+  // aliases matched during import (see matchPrizeCategories() in
+  // src/app/api/projects/import-csv/route.ts).
+  const [slugsInput, setSlugsInput] = useState("");
+  const [slugsTouched, setSlugsTouched] = useState(false);
   const [shortName, setShortName] = useState("");
   const [systemPrompt, setSystemPrompt] = useState("");
   const [findWords, setFindWords] = useState("");
@@ -47,15 +50,17 @@ export function PrizeCategoryDialog({
 
     if (prizeCategory) {
       setName(prizeCategory.name);
-      setSlug(prizeCategory.slug);
-      setSlugTouched(true);
+      setSlugsInput(
+        [prizeCategory.slug, ...(prizeCategory.alias_slugs ?? [])].join(", "),
+      );
+      setSlugsTouched(true);
       setShortName(prizeCategory.short_name ?? "");
       setSystemPrompt(prizeCategory.system_prompt);
       setFindWords((prizeCategory.find_words ?? []).join(", "));
     } else {
       setName(initialValues?.name ?? "");
-      setSlug(initialValues?.slug ?? "");
-      setSlugTouched(!!initialValues?.slug);
+      setSlugsInput(initialValues?.slug ?? "");
+      setSlugsTouched(!!initialValues?.slug);
       setShortName("");
       setSystemPrompt("");
       setFindWords("");
@@ -65,13 +70,25 @@ export function PrizeCategoryDialog({
 
   const handleNameChange = (value: string) => {
     setName(value);
-    if (!slugTouched) {
-      setSlug(slugify(value));
+    if (!slugsTouched) {
+      setSlugsInput(slugify(value));
     }
   };
 
+  const parsedSlugs = Array.from(
+    new Set(
+      slugsInput
+        .split(",")
+        .map((s) => slugify(s))
+        .filter(Boolean),
+    ),
+  );
+
   const canSubmit =
-    name.trim() && slug.trim() && systemPrompt.trim() && !isSubmitting;
+    name.trim() &&
+    parsedSlugs.length > 0 &&
+    systemPrompt.trim() &&
+    !isSubmitting;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -79,15 +96,18 @@ export function PrizeCategoryDialog({
     setIsSubmitting(true);
     setError(null);
 
+    const [slug, ...aliasSlugs] = parsedSlugs;
+
     const payload = {
       name: name.trim(),
-      slug: slug.trim(),
+      slug,
       short_name: shortName.trim(),
       system_prompt: systemPrompt.trim(),
       find_words: findWords
         .split(",")
         .map((w) => w.trim())
         .filter(Boolean),
+      alias_slugs: aliasSlugs,
     };
 
     try {
@@ -151,20 +171,24 @@ export function PrizeCategoryDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="prize-slug">
-              Slug
+            <Label htmlFor="prize-slugs">
+              Slugs
               <span className="text-xs font-normal text-muted-foreground ml-2">
-                Must match the standardized prize slug on imported projects
+                Comma-separated. The first is the canonical slug stored on
+                judged projects; any others are aliases (e.g. differently worded
+                prize names from another event's CSV) that also match this
+                category on import. Each entry is normalized to a slug
+                automatically.
               </span>
             </Label>
             <Input
-              id="prize-slug"
-              value={slug}
+              id="prize-slugs"
+              value={slugsInput}
               onChange={(e) => {
-                setSlugTouched(true);
-                setSlug(e.target.value);
+                setSlugsTouched(true);
+                setSlugsInput(e.target.value);
               }}
-              placeholder="best-use-of-gemini-api"
+              placeholder="best-use-of-gemini-api, Gemini API Prize"
               disabled={isSubmitting}
             />
           </div>

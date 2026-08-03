@@ -58,6 +58,16 @@ export async function PATCH(
         .map((w: string) => w.trim().toLowerCase())
         .filter(Boolean);
     }
+    if (Array.isArray(body?.alias_slugs)) {
+      updates.alias_slugs = Array.from(
+        new Set(
+          body.alias_slugs
+            .filter((w: unknown): w is string => typeof w === "string")
+            .map((w: string) => slugify(w))
+            .filter(Boolean),
+        ),
+      );
+    }
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json(
