@@ -240,6 +240,12 @@ export function ProjectDetailPane({
   } = usePrizeCategories();
   const { toggleFavoriteProject } = useStore();
   const { user } = useSession();
+  const [isTitleExpanded, setIsTitleExpanded] = React.useState(false);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: resets the toggle whenever a different project opens, not on every render
+  React.useEffect(() => {
+    setIsTitleExpanded(false);
+  }, [project?.id]);
 
   if (!project) return null;
 
@@ -310,11 +316,11 @@ export function ProjectDetailPane({
           </div>
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex-1 min-w-0">
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-3 sm:flex-wrap">
                 <button
                   type="button"
                   onClick={() => toggleFavoriteProject(project.id)}
-                  className="group p-1.5 hover:bg-gray-100 rounded-md transition-all border border-transparent hover:border-gray-200 outline-none focus-visible:ring-2 focus-visible:ring-gray-400"
+                  className="group shrink-0 p-1.5 hover:bg-gray-100 rounded-md transition-all border border-transparent hover:border-gray-200 outline-none focus-visible:ring-2 focus-visible:ring-gray-400"
                   aria-label={
                     project.is_favorite
                       ? "Remove from favorites"
@@ -329,11 +335,26 @@ export function ProjectDetailPane({
                     }`}
                   />
                 </button>
-                <SheetTitle className="text-2xl sm:text-4xl font-bold text-gray-900 font-headline wrap-break-word leading-tight">
-                  {project.project_title}
-                </SheetTitle>
+                <div className="min-w-0 flex-1 sm:flex-initial sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={() => setIsTitleExpanded((prev) => !prev)}
+                    className="block w-full text-left sm:pointer-events-none sm:cursor-default"
+                  >
+                    <SheetTitle
+                      className={`text-2xl sm:text-4xl font-bold text-gray-900 font-headline leading-tight sm:wrap-break-word ${
+                        isTitleExpanded ? "wrap-break-word" : "truncate"
+                      }`}
+                    >
+                      {project.project_title}
+                    </SheetTitle>
+                  </button>
+                </div>
                 {project.status === "processed" ? (
-                  <StatusIcon status={project.status} className="h-6! w-6!" />
+                  <StatusIcon
+                    status={project.status}
+                    className="h-6! w-6! shrink-0"
+                  />
                 ) : (
                   <StatusBadge
                     kind="project"
