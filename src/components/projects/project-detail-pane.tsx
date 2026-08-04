@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { DevpostIcon } from "@/components/icons/devpost-icon";
 import { GithubCopilotIcon } from "@/components/icons/github-copilot-icon";
 import { GithubIcon } from "@/components/icons/github-icon";
+import { PresenceAvatars } from "@/components/navigation/presence-avatars";
 import { JudgingTimerCard } from "@/components/projects/judging-timer-card";
 import { SaveStatusIndicator } from "@/components/save-status-indicator";
 import { StatusBadge } from "@/components/status/status-badge";
@@ -50,7 +51,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useAutoSaveField } from "@/hooks/use-auto-save-field";
+import type { PresenceUser } from "@/hooks/use-event-presence";
 import { usePrizeCategories } from "@/hooks/use-prize-categories";
+import { useSession } from "@/hooks/use-session";
 import {
   deslugify,
   getPrizeStatusDisplay,
@@ -220,6 +223,7 @@ interface ProjectDetailPaneProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onRerun: () => void;
+  readonly presenceUsers?: PresenceUser[];
 }
 
 export function ProjectDetailPane({
@@ -227,6 +231,7 @@ export function ProjectDetailPane({
   open,
   onOpenChange,
   onRerun,
+  presenceUsers,
 }: ProjectDetailPaneProps) {
   const {
     prizeCategoryRecord: prizeCategoryMap,
@@ -234,8 +239,13 @@ export function ProjectDetailPane({
     prizeCategories,
   } = usePrizeCategories();
   const { toggleFavoriteProject } = useStore();
+  const { user } = useSession();
 
   if (!project) return null;
+
+  const otherViewers = (presenceUsers ?? []).filter(
+    (p) => p.projectId === project.id && p.userId !== user?.id,
+  );
 
   const csvRow = getCsvRow(project);
   const teamMembers = getTeamMembers(project);
@@ -381,6 +391,17 @@ export function ProjectDetailPane({
               </Button>
             </div>
           </div>
+
+          {otherViewers.length > 0 && (
+            <div className="flex items-center gap-2 mt-3">
+              <PresenceAvatars users={otherViewers} size="sm" />
+              <span className="text-sm text-gray-500">
+                {otherViewers.length === 1
+                  ? `${otherViewers[0].name} is also viewing this project`
+                  : `${otherViewers.length} others are also viewing this project`}
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto">

@@ -16,6 +16,7 @@ import { AddProjectDialog } from "@/components/projects/add-project-dialog";
 import { CSVImportDialog } from "@/components/projects/csv-import-dialog";
 import { ProjectDetailPane } from "@/components/projects/project-detail-pane";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
+import { useEventPresence } from "@/hooks/use-event-presence";
 import { useRealtimeSubscription } from "@/hooks/use-realtime-subscription";
 import { useSession } from "@/hooks/use-session";
 import { startProjectReview } from "@/lib/data-service";
@@ -94,6 +95,11 @@ function DashboardContent({ children }: DashboardRootProps) {
   }, [params]);
 
   const activeEventId = routeEventId ?? overrideEventId ?? null;
+
+  const presenceUsers = useEventPresence(
+    activeEventId,
+    selectedProject?.id ?? null,
+  );
 
   const { isLoading } = useDashboardData(activeEventId);
 
@@ -324,12 +330,17 @@ function DashboardContent({ children }: DashboardRootProps) {
         handleAddProjectClick,
       }}
     >
-      <AppShell selectedEvent={selectedEvent} selectedProject={selectedProject}>
+      <AppShell
+        selectedEvent={selectedEvent}
+        selectedProject={selectedProject}
+        presenceUsers={presenceUsers}
+      >
         {children}
       </AppShell>
 
       <ProjectDetailPane
         project={selectedProject}
+        presenceUsers={presenceUsers}
         open={!!selectedProject}
         onOpenChange={(open) => {
           if (!open) {

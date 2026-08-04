@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { BenchLogo } from "@/components/icons/bench-logo";
 import { NotificationDrawer } from "@/components/navigation/notification-drawer";
+import { PresenceAvatars } from "@/components/navigation/presence-avatars";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Breadcrumb,
@@ -23,14 +24,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { PresenceUser } from "@/hooks/use-event-presence";
 import { useSession } from "@/hooks/use-session";
 import type { Event, Project } from "@/lib/store";
 
 interface TopBarProps {
   readonly selectedEvent?: Event;
   readonly selectedProject?: Project | null;
+  readonly presenceUsers?: PresenceUser[];
 }
-export function TopBar({ selectedEvent, selectedProject }: TopBarProps) {
+export function TopBar({
+  selectedEvent,
+  selectedProject,
+  presenceUsers,
+}: TopBarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, isLoading } = useSession();
@@ -115,6 +122,12 @@ export function TopBar({ selectedEvent, selectedProject }: TopBarProps) {
       </div>
 
       <div className="flex shrink-0 items-center gap-3">
+        {selectedEvent && presenceUsers && (
+          <PresenceAvatars
+            users={presenceUsers.filter((p) => p.userId !== user?.id)}
+          />
+        )}
+
         <NotificationDrawer />
 
         <DropdownMenu>
