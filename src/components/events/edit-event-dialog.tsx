@@ -192,12 +192,7 @@ export function EditEventDialog({
           </div>
 
           <div className="space-y-2">
-            <Label>
-              Guest Access
-              <span className="text-xs font-normal text-muted-foreground ml-2">
-                Applies immediately, not tied to Save below
-              </span>
-            </Label>
+            <Label>Guest Access</Label>
             {event && <EventGuestAccess eventId={event.id} />}
           </div>
 
