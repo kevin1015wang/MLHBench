@@ -16,6 +16,7 @@ export default function EventLayout({ children }: EventLayoutProps) {
     handleImportClick,
     handleAddProjectClick,
     handleProjectClick,
+    presenceUsers,
   } = useDashboard();
 
   return (
@@ -27,6 +28,7 @@ export default function EventLayout({ children }: EventLayoutProps) {
         onAddProject={handleAddProjectClick}
         onProjectClick={handleProjectClick}
         eventId={activeEventId}
+        presenceUsers={presenceUsers}
       />
       {children}
     </>

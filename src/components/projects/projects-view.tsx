@@ -13,6 +13,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import type { PresenceUser } from "@/hooks/use-event-presence";
 import type { Event, Project } from "@/lib/store";
 import { useStore } from "@/lib/store";
 
@@ -23,6 +24,7 @@ interface ProjectsViewProps {
   readonly onAddProject: () => void;
   readonly onProjectClick: (project: Project) => void;
   readonly eventId?: string | null;
+  readonly presenceUsers?: PresenceUser[];
 }
 
 export function ProjectsView({
@@ -32,6 +34,7 @@ export function ProjectsView({
   onAddProject,
   onProjectClick,
   eventId,
+  presenceUsers,
 }: ProjectsViewProps) {
   const { projects, selectedEventId, events, updateEvent } = useStore();
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
@@ -298,6 +301,7 @@ export function ProjectsView({
           onAddProject={onAddProject}
           onProjectClick={onProjectClick}
           eventId={activeEventId}
+          presenceUsers={presenceUsers}
         />
       </div>
 

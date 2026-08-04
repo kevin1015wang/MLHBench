@@ -16,7 +16,10 @@ import { AddProjectDialog } from "@/components/projects/add-project-dialog";
 import { CSVImportDialog } from "@/components/projects/csv-import-dialog";
 import { ProjectDetailPane } from "@/components/projects/project-detail-pane";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
-import { useEventPresence } from "@/hooks/use-event-presence";
+import {
+  type PresenceUser,
+  useEventPresence,
+} from "@/hooks/use-event-presence";
 import { useRealtimeSubscription } from "@/hooks/use-realtime-subscription";
 import { useSession } from "@/hooks/use-session";
 import { startProjectReview } from "@/lib/data-service";
@@ -28,6 +31,7 @@ interface DashboardContextValue {
   activeEventId: string | null;
   selectedProject: Project | null;
   selectedEventName?: string;
+  presenceUsers: PresenceUser[];
   handleProjectClick: (project: Project) => void;
   handleRunAnalysis: (projectId: string) => Promise<void>;
   handleBatchRun: (projectIds: string[]) => Promise<void>;
@@ -323,6 +327,7 @@ function DashboardContent({ children }: DashboardRootProps) {
         activeEventId,
         selectedProject,
         selectedEventName,
+        presenceUsers,
         handleProjectClick,
         handleRunAnalysis,
         handleBatchRun,

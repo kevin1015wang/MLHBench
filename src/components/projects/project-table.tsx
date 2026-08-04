@@ -24,6 +24,7 @@ import {
 } from "@/components/data-table/data-table-toolbar";
 import { DevpostIcon } from "@/components/icons/devpost-icon";
 import { GithubIcon } from "@/components/icons/github-icon";
+import { PresenceAvatars } from "@/components/navigation/presence-avatars";
 import { ProcessingModal } from "@/components/processing-modal";
 import { ReviewView } from "@/components/projects/review-view";
 import { SaveStatusIndicator } from "@/components/save-status-indicator";
@@ -41,6 +42,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useAutoSaveField } from "@/hooks/use-auto-save-field";
 import { useDataTable } from "@/hooks/use-data-table";
+import type { PresenceUser } from "@/hooks/use-event-presence";
 import { usePrizeCategories } from "@/hooks/use-prize-categories";
 import { useSession } from "@/hooks/use-session";
 import { exportProjectsToCSV } from "@/lib/csv-export";
@@ -204,6 +206,7 @@ interface ProjectTableProps {
   readonly onProjectClick: (project: Project) => void;
   readonly onViewModeChange?: (viewMode: ViewMode) => void;
   readonly eventId?: string | null;
+  readonly presenceUsers?: PresenceUser[];
 }
 
 // Status options for filtering
@@ -263,6 +266,7 @@ export function ProjectTable({
   onProjectClick,
   onViewModeChange,
   eventId,
+  presenceUsers,
 }: ProjectTableProps) {
   const { toggleFavoriteProject } = useStore();
   const { user } = useSession();
@@ -390,6 +394,19 @@ export function ProjectTable({
 
     return result;
   }, [projects]);
+
+  const viewersByProjectId = React.useMemo(() => {
+    const map = new Map<string, PresenceUser[]>();
+    for (const presenceUser of presenceUsers ?? []) {
+      if (!presenceUser.projectId || presenceUser.userId === user?.id) {
+        continue;
+      }
+      const existing = map.get(presenceUser.projectId) ?? [];
+      existing.push(presenceUser);
+      map.set(presenceUser.projectId, existing);
+    }
+    return map;
+  }, [presenceUsers, user?.id]);
 
   // Check if URL has filter params - reactive to actual query state values
   const hasUrlParams = React.useMemo(() => {
@@ -833,6 +850,7 @@ export function ProjectTable({
         cell: ({ row }) => {
           const project = row.original;
           const duplicateInfo = duplicateNameInfoById.get(project.id);
+          const viewers = viewersByProjectId.get(project.id);
 
           return (
             <div className="max-w-[200px] flex items-center gap-1">
@@ -889,6 +907,9 @@ export function ProjectTable({
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
+              )}
+              {viewers && viewers.length > 0 && (
+                <PresenceAvatars users={viewers} size="sm" />
               )}
             </div>
           );
@@ -1198,6 +1219,7 @@ export function ProjectTable({
     prizeCategoryMap,
     prizeCategoryNameMap,
     duplicateNameInfoById.get,
+    viewersByProjectId.get,
   ]);
 
   // Merge persisted column visibility with default visibility.
