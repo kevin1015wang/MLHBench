@@ -1,5 +1,6 @@
 import {
   AlertTriangle,
+  CalendarX,
   CheckCircle2,
   Loader2,
   Minus,
@@ -30,6 +31,13 @@ export function StatusIcon({ status, className }: StatusIconProps) {
           "text-blue-600 dark:text-blue-400 animate-spin",
           className,
         )}
+      />
+    );
+  }
+  if (status === "invalid:rule_violation") {
+    return (
+      <CalendarX
+        className={cn("text-amber-600 dark:text-amber-400", className)}
       />
     );
   }

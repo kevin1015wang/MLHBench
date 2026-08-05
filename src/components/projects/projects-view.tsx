@@ -243,7 +243,7 @@ export function ProjectsView({
         {/* Status Indicators */}
         <div className="flex items-center gap-2">
           {/* Timer Badge */}
-          {timerInfo && timerInfo.type !== "ended" && (
+          {timerInfo?.type === "hacking" && (
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -265,18 +265,13 @@ export function ProjectsView({
                         100 - timerInfo.progress,
                       )}`}
                     >
-                      {timerInfo.type === "judging" ? "Judging: " : ""}
                       {formatTimeRemaining(timerInfo.remaining)} (
                       {Math.round(timerInfo.progress)}%)
                     </span>
                   </Badge>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>
-                    {timerInfo.type === "judging"
-                      ? "Time remaining until judging period ends"
-                      : "Time remaining until hackathon ends"}
-                  </p>
+                  <p>Time remaining until hackathon ends</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>

@@ -42,6 +42,17 @@ function formatForDateInput(dateString: string | null | undefined) {
   return `${year}-${month}-${day}`;
 }
 
+function formatForDateTimeInput(dateString: string | null | undefined) {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
 export function EditEventDialog({
   event,
   onOpenChange,
@@ -49,6 +60,8 @@ export function EditEventDialog({
 }: EditEventDialogProps) {
   const [logoFiles, setLogoFiles] = useState<File[]>([]);
   const [judgingEndDate, setJudgingEndDate] = useState("");
+  const [hackathonStart, setHackathonStart] = useState("");
+  const [hackathonEnd, setHackathonEnd] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -56,6 +69,8 @@ export function EditEventDialog({
     if (event) {
       setLogoFiles([]);
       setJudgingEndDate(formatForDateInput(event.judging_ends_at));
+      setHackathonStart(formatForDateTimeInput(event.starts_at));
+      setHackathonEnd(formatForDateTimeInput(event.ends_at));
       setError(null);
     }
   }, [event]);
@@ -73,6 +88,15 @@ export function EditEventDialog({
   const handleSave = async () => {
     if (!event) return;
 
+    if (
+      hackathonStart &&
+      hackathonEnd &&
+      new Date(hackathonStart) >= new Date(hackathonEnd)
+    ) {
+      setError("Hackathon start must be before the end");
+      return;
+    }
+
     setIsSaving(true);
     setError(null);
     try {
@@ -81,11 +105,20 @@ export function EditEventDialog({
         logoUrl = await uploadEventImage(logoFiles[0]);
       }
 
-      const updates: { logo_url?: string; judging_ends_at: string | null } = {
+      const updates: {
+        logo_url?: string;
+        judging_ends_at: string | null;
+        starts_at: string | null;
+        ends_at: string | null;
+      } = {
         // Treat the date as ending at the end of that day, in local time.
         judging_ends_at: judgingEndDate
           ? new Date(`${judgingEndDate}T23:59:59`).toISOString()
           : null,
+        starts_at: hackathonStart
+          ? new Date(hackathonStart).toISOString()
+          : null,
+        ends_at: hackathonEnd ? new Date(hackathonEnd).toISOString() : null,
       };
       if (logoUrl) updates.logo_url = logoUrl;
 
@@ -121,7 +154,7 @@ export function EditEventDialog({
         <DialogHeader>
           <DialogTitle>Edit Event Details</DialogTitle>
           <DialogDescription>
-            Set the event image and when judging ends.
+            Set the event image, the hackathon window, and when judging ends.
           </DialogDescription>
         </DialogHeader>
 
@@ -181,7 +214,53 @@ export function EditEventDialog({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="edit-event-judging-end">Date (Optional)</Label>
+            <Label>
+              Hackathon Window
+              <span className="text-xs font-normal text-muted-foreground ml-2">
+                Optional -- used to flag commits made outside this window
+              </span>
+            </Label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label
+                  htmlFor="edit-event-starts-at"
+                  className="text-xs font-normal text-muted-foreground"
+                >
+                  Start
+                </Label>
+                <Input
+                  id="edit-event-starts-at"
+                  type="datetime-local"
+                  value={hackathonStart}
+                  onChange={(e) => setHackathonStart(e.target.value)}
+                  disabled={isSaving}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label
+                  htmlFor="edit-event-ends-at"
+                  className="text-xs font-normal text-muted-foreground"
+                >
+                  End
+                </Label>
+                <Input
+                  id="edit-event-ends-at"
+                  type="datetime-local"
+                  value={hackathonEnd}
+                  onChange={(e) => setHackathonEnd(e.target.value)}
+                  disabled={isSaving}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="edit-event-judging-end">
+              Judging Ends
+              <span className="text-xs font-normal text-muted-foreground ml-2">
+                Optional
+              </span>
+            </Label>
             <Input
               id="edit-event-judging-end"
               type="date"

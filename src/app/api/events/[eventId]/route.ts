@@ -30,6 +30,18 @@ export async function PATCH(
           : null;
     }
 
+    if ("starts_at" in (body ?? {})) {
+      updates.starts_at =
+        typeof body.starts_at === "string" && body.starts_at
+          ? body.starts_at
+          : null;
+    }
+
+    if ("ends_at" in (body ?? {})) {
+      updates.ends_at =
+        typeof body.ends_at === "string" && body.ends_at ? body.ends_at : null;
+    }
+
     if (Object.keys(updates).length === 0) {
       return NextResponse.json(
         { error: "No valid fields to update" },
@@ -47,6 +59,12 @@ export async function PATCH(
       .single();
 
     if (error) {
+      if (error.code === "23514") {
+        return NextResponse.json(
+          { error: "Start time must be before end time" },
+          { status: 400 },
+        );
+      }
       console.error("Error updating event:", error);
       return NextResponse.json(
         { error: "Failed to update event" },

@@ -10,6 +10,7 @@ import {
   Info,
   LayoutTemplate,
   Loader2,
+  Pencil,
   Play,
   Star,
   Users,
@@ -23,6 +24,7 @@ import { DevpostIcon } from "@/components/icons/devpost-icon";
 import { GithubCopilotIcon } from "@/components/icons/github-copilot-icon";
 import { GithubIcon } from "@/components/icons/github-icon";
 import { PresenceAvatars } from "@/components/navigation/presence-avatars";
+import { EditProjectDialog } from "@/components/projects/edit-project-dialog";
 import { JudgingTimerCard } from "@/components/projects/judging-timer-card";
 import { SaveStatusIndicator } from "@/components/save-status-indicator";
 import { StatusBadge } from "@/components/status/status-badge";
@@ -238,9 +240,10 @@ export function ProjectDetailPane({
     prizeCategoryNameMap,
     prizeCategories,
   } = usePrizeCategories();
-  const { toggleFavoriteProject } = useStore();
+  const { toggleFavoriteProject, updateProject } = useStore();
   const { user } = useSession();
   const [isTitleExpanded, setIsTitleExpanded] = React.useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: resets the toggle whenever a different project opens, not on every render
   React.useEffect(() => {
@@ -368,6 +371,15 @@ export function ProjectDetailPane({
                     <StatusIcon status={project.status} className="h-6! w-6!" />
                   </StatusBadge>
                 )}
+                <button
+                  type="button"
+                  onClick={() => setIsEditDialogOpen(true)}
+                  className="shrink-0 p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 rounded-md transition-colors"
+                  aria-label="Edit project"
+                  title="Edit project"
+                >
+                  <Pencil className="w-5 h-5" />
+                </button>
                 <div className="hidden items-center gap-2 shrink-0 sm:flex">
                   {project.github_url && (
                     <a
@@ -865,6 +877,16 @@ export function ProjectDetailPane({
           </Button>
         </div>
       </SheetContent>
+
+      <EditProjectDialog
+        project={project}
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        onSaved={(updatedProject) => {
+          updateProject(updatedProject.id, updatedProject);
+          toast.success("Project updated");
+        }}
+      />
     </Sheet>
   );
 }
