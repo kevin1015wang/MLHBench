@@ -179,10 +179,10 @@ export function PrizeCategoriesPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-3xl font-bold text-foreground">
             Prize Categories
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
+          <p className="text-muted-foreground mt-1">
             Configure the MLH prize tracks the AI review agent grades projects
             against.
           </p>
@@ -228,7 +228,7 @@ export function PrizeCategoriesPage() {
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0 flex-1 space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="font-semibold text-gray-900 dark:text-white">
+                  <h3 className="font-semibold text-foreground">
                     {category.name}
                   </h3>
                   <Badge variant="secondary" className="font-mono text-xs">
@@ -261,7 +261,7 @@ export function PrizeCategoriesPage() {
                     ))}
                   </div>
                 )}
-                <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 pt-1">
+                <p className="text-sm text-muted-foreground line-clamp-2 pt-1">
                   {category.system_prompt}
                 </p>
               </div>
@@ -278,7 +278,7 @@ export function PrizeCategoriesPage() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-gray-400 hover:text-destructive hover:bg-destructive/10"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                   onClick={() => setDeletingCategory(category)}
                   aria-label="Delete prize category"
                 >
@@ -290,7 +290,7 @@ export function PrizeCategoriesPage() {
         ))}
 
         {sortedCategories.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
+          <div className="text-center py-12 text-muted-foreground">
             No prize categories configured yet.
           </div>
         )}

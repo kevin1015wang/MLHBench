@@ -35,11 +35,11 @@ export function SaveStatusIndicator({
   return (
     <div className={cn("flex items-center gap-1.5 text-xs", className)}>
       {status === "pending" && !compact && (
-        <span className="text-gray-400">Unsaved</span>
+        <span className="text-muted-foreground">Unsaved</span>
       )}
       {status === "saving" && (
         <span
-          className="flex items-center gap-1 text-gray-400"
+          className="flex items-center gap-1 text-muted-foreground"
           title="Saving..."
         >
           <Loader2 className="w-3 h-3 animate-spin" />
@@ -66,7 +66,7 @@ export function SaveStatusIndicator({
           type="button"
           variant="ghost"
           size="icon"
-          className="h-5 w-5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-500 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+          className="h-5 w-5 text-muted-foreground hover:bg-accent hover:text-foreground"
           onClick={handleSaveClick}
           disabled={status === "saving"}
           aria-label="Save now"

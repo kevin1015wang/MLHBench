@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { BenchLogo } from "@/components/icons/bench-logo";
 import { NotificationDrawer } from "@/components/navigation/notification-drawer";
 import { PresenceAvatars } from "@/components/navigation/presence-avatars";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Breadcrumb,
@@ -61,7 +62,7 @@ export function TopBar({
     : "MLH";
 
   return (
-    <header className="h-16 bg-white dark:bg-[#262626] border-b border-gray-200 dark:border-[#404040] flex items-center justify-between gap-2 px-4 sm:px-6">
+    <header className="h-16 bg-card border-b border-border flex items-center justify-between gap-2 px-4 sm:px-6">
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <Link
           href="/events"
@@ -127,6 +128,8 @@ export function TopBar({
             users={presenceUsers.filter((p) => p.userId !== user?.id)}
           />
         )}
+
+        <ThemeToggle />
 
         <NotificationDrawer />
 

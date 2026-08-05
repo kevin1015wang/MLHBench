@@ -310,9 +310,9 @@ export function ProjectDetailPane({
           }
         }}
       >
-        <div className="p-4 sm:p-8 border-b bg-white">
+        <div className="p-4 sm:p-8 border-b bg-card">
           <div className="flex justify-end sm:hidden -mt-2 -mr-2 mb-1">
-            <SheetClose className="rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200">
+            <SheetClose className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground">
               <X className="size-4" />
               <span className="sr-only">Close</span>
             </SheetClose>
@@ -323,7 +323,7 @@ export function ProjectDetailPane({
                 <button
                   type="button"
                   onClick={() => toggleFavoriteProject(project.id)}
-                  className="group shrink-0 p-1.5 hover:bg-gray-100 rounded-md transition-all border border-transparent hover:border-gray-200 outline-none focus-visible:ring-2 focus-visible:ring-gray-400"
+                  className="group shrink-0 p-1.5 hover:bg-muted rounded-md transition-all border border-transparent hover:border-border outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   aria-label={
                     project.is_favorite
                       ? "Remove from favorites"
@@ -334,7 +334,7 @@ export function ProjectDetailPane({
                     className={`w-6 h-6 transition-colors ${
                       project.is_favorite
                         ? "fill-yellow-400 text-yellow-400"
-                        : "text-gray-300 group-hover:text-gray-400"
+                        : "text-muted-foreground group-hover:text-muted-foreground"
                     }`}
                   />
                 </button>
@@ -345,7 +345,7 @@ export function ProjectDetailPane({
                     className="block w-full text-left sm:pointer-events-none sm:cursor-default"
                   >
                     <SheetTitle
-                      className={`text-2xl sm:text-4xl font-bold text-gray-900 font-headline leading-tight sm:wrap-break-word ${
+                      className={`text-2xl sm:text-4xl font-bold text-foreground font-headline leading-tight sm:wrap-break-word ${
                         isTitleExpanded ? "wrap-break-word" : "truncate"
                       }`}
                     >
@@ -374,7 +374,7 @@ export function ProjectDetailPane({
                 <button
                   type="button"
                   onClick={() => setIsEditDialogOpen(true)}
-                  className="shrink-0 p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 rounded-md transition-colors"
+                  className="shrink-0 p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded-md transition-colors"
                   aria-label="Edit project"
                   title="Edit project"
                 >
@@ -386,7 +386,7 @@ export function ProjectDetailPane({
                       href={project.github_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-gray-400 hover:text-gray-900 transition-colors"
+                      className="text-muted-foreground hover:text-foreground transition-colors"
                       title="GitHub Repository"
                     >
                       <GithubIcon className="w-6 h-6" />
@@ -397,7 +397,7 @@ export function ProjectDetailPane({
                       href={project.submission_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-gray-400 hover:text-[#003E54] transition-colors"
+                      className="text-muted-foreground hover:text-[#003E54] transition-colors"
                       title="Devpost Submission"
                     >
                       <DevpostIcon className="w-6 h-6" />
@@ -409,7 +409,9 @@ export function ProjectDetailPane({
 
             <div className="flex flex-wrap items-center gap-3 shrink-0">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-gray-400">Table</span>
+                <span className="text-xs font-medium text-muted-foreground">
+                  Table
+                </span>
                 <TableNumberInput project={project} />
               </div>
               <Button
@@ -428,7 +430,7 @@ export function ProjectDetailPane({
           {otherViewers.length > 0 && (
             <div className="flex items-center gap-2 mt-3">
               <PresenceAvatars users={otherViewers} size="sm" />
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-muted-foreground">
                 {otherViewers.length === 1
                   ? `${otherViewers[0].name} is also viewing this project`
                   : `${otherViewers.length} others are also viewing this project`}
@@ -438,11 +440,11 @@ export function ProjectDetailPane({
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          <div className="px-8 py-6 space-y-4 bg-gray-50/50">
+          <div className="px-8 py-6 space-y-4 bg-muted/50">
             <JudgingTimerCard />
 
-            <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm space-y-3">
-              <div className="flex items-center gap-2 text-gray-500">
+            <div className="bg-card border border-border rounded-xl p-5 shadow-sm space-y-3">
+              <div className="flex items-center gap-2 text-muted-foreground">
                 <Gavel className="w-5 h-5" />
                 <span className="text-sm font-medium">Judging Notes</span>
               </div>
@@ -466,8 +468,8 @@ export function ProjectDetailPane({
             {/* Bento Box Stats */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Technical Complexity */}
-              <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm space-y-3">
-                <div className="flex items-center gap-2 text-gray-500">
+              <div className="bg-card border border-border rounded-xl p-5 shadow-sm space-y-3">
+                <div className="flex items-center gap-2 text-muted-foreground">
                   <LayoutTemplate className="w-5 h-5" />
                   <span className="text-sm font-medium">
                     Technical Complexity
@@ -475,19 +477,19 @@ export function ProjectDetailPane({
                 </div>
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-2xl font-bold text-gray-900 capitalize">
+                    <span className="text-2xl font-bold text-foreground capitalize">
                       {project.technical_complexity || "N/A"}
                     </span>
                   </div>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-muted-foreground">
                     Based on tech stack and feature analysis
                   </p>
                 </div>
               </div>
 
               {/* Description Accuracy */}
-              <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm space-y-3">
-                <div className="flex items-center gap-2 text-gray-500">
+              <div className="bg-card border border-border rounded-xl p-5 shadow-sm space-y-3">
+                <div className="flex items-center gap-2 text-muted-foreground">
                   <Info className="w-5 h-5" />
                   <span className="text-sm font-medium">
                     Description Accuracy
@@ -495,7 +497,7 @@ export function ProjectDetailPane({
                 </div>
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-2xl font-bold text-gray-900 capitalize">
+                    <span className="text-2xl font-bold text-foreground capitalize">
                       {project.description_accuracy_level || "N/A"}
                     </span>
                   </div>
@@ -503,14 +505,14 @@ export function ProjectDetailPane({
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <div className="cursor-help">
-                          <Markdown className="text-gray-600 line-clamp-2">
+                          <Markdown className="text-muted-foreground line-clamp-2">
                             {project.description_accuracy_message ||
                               "No details available"}
                           </Markdown>
                         </div>
                       </TooltipTrigger>
                       <TooltipContent side="bottom" className="max-w-md">
-                        <Markdown className="text-gray-700">
+                        <Markdown className="text-foreground">
                           {project.description_accuracy_message ||
                             "No details available"}
                         </Markdown>
@@ -523,16 +525,16 @@ export function ProjectDetailPane({
 
             {/* Code Review Agent Section */}
             {project.technical_complexity_message && (
-              <div className="border border-purple-100 rounded-xl p-5 bg-linear-to-br from-purple-50 to-blue-50 shadow-sm">
+              <div className="border border-purple-100 dark:border-purple-900/40 rounded-xl p-5 bg-linear-to-br from-purple-50 to-blue-50 dark:from-purple-950/30 dark:to-blue-950/30 shadow-sm">
                 <div className="flex items-start gap-4 mb-4">
                   <div className="w-10 h-10 rounded-lg bg-(--mlh-purple) flex items-center justify-center shrink-0">
                     <Code2 className="w-5 h-5 text-white" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-xl font-semibold text-gray-900 mb-1">
+                    <h3 className="text-xl font-semibold text-foreground mb-1">
                       Code Review
                     </h3>
-                    <Markdown className="text-gray-700">
+                    <Markdown className="text-foreground">
                       {project.technical_complexity_message}
                     </Markdown>
                   </div>
@@ -544,7 +546,7 @@ export function ProjectDetailPane({
                       <Badge
                         key={tech}
                         variant="secondary"
-                        className="bg-white text-gray-700 hover:bg-gray-50"
+                        className="bg-card text-foreground hover:bg-muted"
                       >
                         {tech}
                       </Badge>
@@ -610,32 +612,32 @@ export function ProjectDetailPane({
 
                       if (status === "valid") {
                         StatusIcon = (
-                          <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center shrink-0">
+                          <div className="w-10 h-10 rounded-lg bg-green-100 dark:bg-green-950/40 flex items-center justify-center shrink-0">
                             <CheckCircle2 className="w-5 h-5 text-green-600" />
                           </div>
                         );
                       } else if (status === "invalid") {
                         StatusIcon = (
-                          <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center shrink-0">
+                          <div className="w-10 h-10 rounded-lg bg-orange-100 dark:bg-orange-950/40 flex items-center justify-center shrink-0">
                             <HelpCircle className="w-5 h-5 text-orange-600" />
                           </div>
                         );
                       } else if (status === "processing") {
                         StatusIcon = (
-                          <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+                          <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-950/40 flex items-center justify-center shrink-0">
                             <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
                           </div>
                         );
                       } else if (status === "errored") {
                         StatusIcon = (
-                          <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
+                          <div className="w-10 h-10 rounded-lg bg-red-100 dark:bg-red-950/40 flex items-center justify-center shrink-0">
                             <XCircle className="w-5 h-5 text-red-600" />
                           </div>
                         );
                       } else {
                         StatusIcon = (
-                          <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
-                            <div className="w-5 h-5 rounded-full border-2 border-gray-300" />
+                          <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                            <div className="w-5 h-5 rounded-full border-2 border-muted-foreground/40" />
                           </div>
                         );
                       }
@@ -643,15 +645,15 @@ export function ProjectDetailPane({
                       return (
                         <div
                           key={trackSlug}
-                          className="border border-gray-100 rounded-xl p-5 bg-white shadow-sm hover:shadow-md transition-all duration-200"
+                          className="border border-border rounded-xl p-5 bg-card shadow-sm hover:shadow-md transition-all duration-200"
                         >
                           <div className="flex items-start gap-4">
                             {StatusIcon}
                             <div className="space-y-1">
-                              <h4 className="text-xl font-semibold text-gray-900">
+                              <h4 className="text-xl font-semibold text-foreground">
                                 {fullName}
                               </h4>
-                              <Markdown className="text-gray-600 leading-relaxed">
+                              <Markdown className="text-muted-foreground leading-relaxed">
                                 {message}
                               </Markdown>
                             </div>
@@ -665,25 +667,25 @@ export function ProjectDetailPane({
             })()}
 
             <div className="flex items-center gap-4 pt-4 pb-2">
-              <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
-              <span className="text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">
                 Project Details
               </span>
-              <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
+              <div className="h-px flex-1 bg-border" />
             </div>
 
             {/* Submission Details */}
-            <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm space-y-4">
-              <div className="flex items-center gap-2 text-gray-500">
+            <div className="bg-card border border-border rounded-xl p-5 shadow-sm space-y-4">
+              <div className="flex items-center gap-2 text-muted-foreground">
                 <Info className="w-5 h-5" />
                 <span className="text-sm font-medium">About the Project</span>
               </div>
               {project.about_the_project ? (
-                <Markdown className="text-gray-700">
+                <Markdown className="text-foreground">
                   {project.about_the_project}
                 </Markdown>
               ) : (
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-muted-foreground">
                   No description provided.
                 </p>
               )}
@@ -699,18 +701,18 @@ export function ProjectDetailPane({
               )}
 
               {project.notes && (
-                <div className="border-t border-gray-100 pt-3">
-                  <div className="text-xs font-medium text-gray-400 mb-1">
+                <div className="border-t border-border pt-3">
+                  <div className="text-xs font-medium text-muted-foreground mb-1">
                     Submitter Notes
                   </div>
-                  <p className="text-sm text-gray-700">{project.notes}</p>
+                  <p className="text-sm text-foreground">{project.notes}</p>
                 </div>
               )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm space-y-3">
-                <div className="flex items-center gap-2 text-gray-500">
+              <div className="bg-card border border-border rounded-xl p-5 shadow-sm space-y-3">
+                <div className="flex items-center gap-2 text-muted-foreground">
                   <Users className="w-5 h-5" />
                   <span className="text-sm font-medium">
                     Team {project.team_size ? `(${project.team_size})` : ""}
@@ -721,11 +723,11 @@ export function ProjectDetailPane({
                     teamMembers.map((member) => (
                       <div
                         key={`${member.name}-${member.email ?? ""}`}
-                        className="text-sm text-gray-700"
+                        className="text-sm text-foreground"
                       >
                         {member.name}
                         {member.email && (
-                          <span className="text-gray-400">
+                          <span className="text-muted-foreground">
                             {" "}
                             · {member.email}
                           </span>
@@ -733,15 +735,15 @@ export function ProjectDetailPane({
                       </div>
                     ))
                   ) : (
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-muted-foreground">
                       No team info available.
                     </p>
                   )}
                 </div>
               </div>
 
-              <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm space-y-3">
-                <div className="flex items-center gap-2 text-gray-500">
+              <div className="bg-card border border-border rounded-xl p-5 shadow-sm space-y-3">
+                <div className="flex items-center gap-2 text-muted-foreground">
                   <Video className="w-5 h-5" />
                   <span className="text-sm font-medium">Links</span>
                 </div>
@@ -795,7 +797,7 @@ export function ProjectDetailPane({
                     !project.submission_url &&
                     !project.video_demo_link &&
                     project.try_it_out_links.length === 0 && (
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-muted-foreground">
                         No additional links provided.
                       </p>
                     )}
@@ -804,14 +806,16 @@ export function ProjectDetailPane({
             </div>
 
             {project.opt_in_prizes && (
-              <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm space-y-2">
-                <div className="flex items-center gap-2 text-gray-500">
+              <div className="bg-card border border-border rounded-xl p-5 shadow-sm space-y-2">
+                <div className="flex items-center gap-2 text-muted-foreground">
                   <Gavel className="w-5 h-5" />
                   <span className="text-sm font-medium">
                     All Opted-In Prizes
                   </span>
                 </div>
-                <p className="text-sm text-gray-700">{project.opt_in_prizes}</p>
+                <p className="text-sm text-foreground">
+                  {project.opt_in_prizes}
+                </p>
               </div>
             )}
 
@@ -820,20 +824,20 @@ export function ProjectDetailPane({
               <Accordion
                 type="single"
                 collapsible
-                className="bg-white border border-gray-100 rounded-xl px-5 shadow-sm"
+                className="bg-card border border-border rounded-xl px-5 shadow-sm"
               >
                 <AccordionItem value="raw-csv">
-                  <AccordionTrigger className="text-sm font-medium text-gray-700">
+                  <AccordionTrigger className="text-sm font-medium text-foreground">
                     All Submission Fields (Raw CSV Data)
                   </AccordionTrigger>
                   <AccordionContent>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
                       {Object.entries(csvRow).map(([key, value]) => (
                         <div key={key} className="min-w-0">
-                          <div className="text-xs font-medium text-gray-400">
+                          <div className="text-xs font-medium text-muted-foreground">
                             {key}
                           </div>
-                          <div className="text-gray-700 wrap-break-word">
+                          <div className="text-foreground wrap-break-word">
                             {value || "—"}
                           </div>
                         </div>
@@ -847,13 +851,13 @@ export function ProjectDetailPane({
         </div>
 
         {/* Judging Section Sticky Footer */}
-        <div className="p-4 border-t bg-white shrink-0 z-40">
+        <div className="p-4 border-t bg-card shrink-0 z-40">
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-indigo-900 shrink-0">
-              <div className="w-8 h-8 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0">
+            <div className="flex items-center gap-2 text-indigo-900 dark:text-indigo-300 shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-950/40 flex items-center justify-center shrink-0">
                 <Gavel className="w-4 h-4 text-indigo-600" />
               </div>
-              <span className="text-sm font-medium text-gray-700">Score</span>
+              <span className="text-sm font-medium text-foreground">Score</span>
             </div>
 
             <div className="flex items-center gap-2 shrink-0">

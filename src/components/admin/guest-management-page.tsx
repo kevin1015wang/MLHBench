@@ -82,10 +82,8 @@ export function GuestManagementPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Manage Guests
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
+          <h1 className="text-3xl font-bold text-foreground">Manage Guests</h1>
+          <p className="text-muted-foreground mt-1">
             Create guest accounts and set their AI review run quota. Grant event
             access from each event's Edit Event dialog.
           </p>
@@ -135,13 +133,15 @@ export function GuestManagementPage() {
       )}
 
       {isLoading ? (
-        <div className="text-center py-12 text-gray-500">Loading...</div>
+        <div className="text-center py-12 text-muted-foreground">
+          Loading...
+        </div>
       ) : guests.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 text-muted-foreground">
           No guests yet -- click "New Guest" to create one.
         </div>
       ) : filteredGuests.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
+        <div className="text-center py-12 text-muted-foreground">
           No guests match "{search}".
         </div>
       ) : (
@@ -188,16 +188,14 @@ function GuestCard({
     <Card className="p-5 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h3 className="font-semibold text-gray-900 dark:text-white">
+          <h3 className="font-semibold text-foreground">
             {guest.display_name || guest.email}
           </h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            {guest.email}
-          </p>
+          <p className="text-sm text-muted-foreground">{guest.email}</p>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-gray-400">
+          <span className="text-xs font-medium text-muted-foreground">
             AI runs ({guest.ai_run_count} used)
           </span>
           <Input
@@ -220,7 +218,7 @@ function GuestCard({
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:text-gray-200 dark:hover:bg-gray-800"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-accent"
             onClick={onResetPassword}
             aria-label="Reset password"
           >
@@ -229,7 +227,7 @@ function GuestCard({
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-gray-400 hover:text-destructive hover:bg-destructive/10"
+            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
             onClick={onDelete}
             aria-label="Delete guest"
           >
@@ -239,7 +237,9 @@ function GuestCard({
       </div>
 
       <div className="space-y-2">
-        <span className="text-xs font-medium text-gray-400">Event access</span>
+        <span className="text-xs font-medium text-muted-foreground">
+          Event access
+        </span>
         <div className="flex flex-wrap gap-1.5">
           {grantedEvents.length > 0 ? (
             grantedEvents.map((event) => (
@@ -248,7 +248,9 @@ function GuestCard({
               </Badge>
             ))
           ) : (
-            <span className="text-sm text-gray-500">No event access</span>
+            <span className="text-sm text-muted-foreground">
+              No event access
+            </span>
           )}
         </div>
       </div>

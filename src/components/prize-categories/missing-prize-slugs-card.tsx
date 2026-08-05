@@ -70,10 +70,8 @@ export function MissingPrizeSlugsCard({
   return (
     <Card className="p-5 border-orange-200 bg-orange-50/50 dark:border-orange-900 dark:bg-orange-950/20 space-y-4">
       <div>
-        <h2 className="font-semibold text-gray-900 dark:text-white">
-          Missing Configuration
-        </h2>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
+        <h2 className="font-semibold text-foreground">Missing Configuration</h2>
+        <p className="text-sm text-muted-foreground">
           These prize slugs show up on imported projects but have no matching
           category yet, so review runs will mark them &ldquo;configuration not
           found.&rdquo; Add them as a new category, attach them as an alias of
@@ -82,22 +80,22 @@ export function MissingPrizeSlugsCard({
       </div>
       {sections.map(({ eventId, eventName, infos }) => (
         <div key={eventId} className="space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {eventName}
           </h3>
           {infos.map(({ slug }) => (
             <div
               key={slug}
-              className="flex flex-wrap items-center justify-between gap-2 bg-white dark:bg-transparent border border-orange-200 dark:border-orange-900 rounded-md px-3 py-2"
+              className="flex flex-wrap items-center justify-between gap-2 bg-card border border-orange-200 dark:border-orange-900 rounded-md px-3 py-2"
             >
-              <span className="text-sm font-medium text-gray-900 dark:text-white">
+              <span className="text-sm font-medium text-foreground">
                 {deslugify(slug)}
               </span>
               <div className="flex items-center gap-1 shrink-0">
                 <Button
                   variant="outline"
                   size="sm"
-                  className="bg-white dark:bg-transparent"
+                  className="bg-card"
                   onClick={() => onCreateNew(slug)}
                 >
                   <Plus className="w-3 h-3" />
@@ -108,7 +106,7 @@ export function MissingPrizeSlugsCard({
                     <Button
                       variant="outline"
                       size="sm"
-                      className="bg-white dark:bg-transparent"
+                      className="bg-card"
                       disabled={
                         prizeCategories.length === 0 || pendingSlug === slug
                       }
@@ -137,7 +135,7 @@ export function MissingPrizeSlugsCard({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-gray-400 hover:text-destructive hover:bg-destructive/10"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                   aria-label="Hide prize slug"
                   onClick={() => onHide(slug)}
                 >

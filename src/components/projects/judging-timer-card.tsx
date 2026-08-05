@@ -20,16 +20,16 @@ export function JudgingTimerCard() {
 
   return (
     <div
-      className={`bg-white border rounded-xl p-5 shadow-sm space-y-3 transition-colors ${
+      className={`bg-card border rounded-xl p-5 shadow-sm space-y-3 transition-colors ${
         isAlarming
-          ? "border-red-300 bg-red-50/50"
-          : "border-gray-100 dark:border-gray-800"
+          ? "border-red-300 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/30"
+          : "border-border"
       }`}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div
           className={`flex items-center gap-2 ${
-            isAlarming ? "text-red-600" : "text-gray-500"
+            isAlarming ? "text-red-600" : "text-muted-foreground"
           }`}
         >
           <Timer className={`w-5 h-5 ${isAlarming ? "animate-pulse" : ""}`} />
@@ -57,7 +57,7 @@ export function JudgingTimerCard() {
       <div className="flex items-center justify-between gap-4">
         <div
           className={`text-4xl font-bold font-mono tabular-nums ${
-            isAlarming ? "text-red-600" : "text-gray-900 dark:text-white"
+            isAlarming ? "text-red-600" : "text-foreground"
           }`}
         >
           {formatTime(remaining)}

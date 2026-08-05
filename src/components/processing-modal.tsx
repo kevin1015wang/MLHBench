@@ -62,8 +62,8 @@ export function ProcessingModal() {
     if (status === "processing:prize_category_review") return "bg-yellow-500";
     if (status.startsWith("invalid")) return "bg-orange-500";
     if (status === "errored") return "bg-red-500";
-    if (isQueued) return "bg-gray-400";
-    return "bg-gray-400";
+    if (isQueued) return "bg-muted-foreground";
+    return "bg-muted-foreground";
   };
 
   const circles = processingProjects.map((projectId) => {
@@ -89,9 +89,9 @@ export function ProcessingModal() {
   };
 
   return (
-    <div className="relative w-full max-w-6xl max-h-[95vh] bg-white dark:bg-[#262626] rounded-lg border border-gray-200 dark:border-[#404040] shadow-xl p-6 overflow-y-auto">
+    <div className="relative w-full max-w-6xl max-h-[95vh] bg-card rounded-lg border border-border shadow-xl p-6 overflow-y-auto">
       <div className="flex items-start justify-between mb-4">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+        <h2 className="text-xl font-semibold text-foreground">
           Processing Projects
         </h2>
         <Button
@@ -107,7 +107,7 @@ export function ProcessingModal() {
       <div className="space-y-6">
         <div className="space-y-6 py-4">
           <div className="text-center">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-muted-foreground">
               Analyzing {processingProjects.length}{" "}
               {processingProjects.length === 1 ? "project" : "projects"}
             </p>
@@ -115,7 +115,7 @@ export function ProcessingModal() {
 
           {/* Colorful circles visualization */}
           <div className="space-y-4">
-            <div className="flex flex-wrap gap-2 justify-center p-6 bg-gray-50 rounded-lg">
+            <div className="flex flex-wrap gap-2 justify-center p-6 bg-muted rounded-lg">
               {circles.map((circle) => {
                 const status = getProjectStatus(circle.projectId);
                 return (
@@ -138,28 +138,28 @@ export function ProcessingModal() {
             {/* Status indicators */}
             <div className="flex items-center justify-center gap-8 text-sm flex-wrap">
               <div className="flex items-center gap-2 whitespace-nowrap">
-                <div className="w-3 h-3 rounded-full bg-gray-400 shrink-0" />
-                <span className="text-gray-600">Queued</span>
+                <div className="w-3 h-3 rounded-full bg-muted-foreground shrink-0" />
+                <span className="text-muted-foreground">Queued</span>
               </div>
               <div className="flex items-center gap-2 whitespace-nowrap">
                 <div className="w-3 h-3 rounded-full bg-blue-500 shrink-0" />
-                <span className="text-gray-600">Code Review</span>
+                <span className="text-muted-foreground">Code Review</span>
               </div>
               <div className="flex items-center gap-2 whitespace-nowrap">
                 <div className="w-3 h-3 rounded-full bg-yellow-500 shrink-0" />
-                <span className="text-gray-600">Prize Analysis</span>
+                <span className="text-muted-foreground">Prize Analysis</span>
               </div>
               <div className="flex items-center gap-2 whitespace-nowrap">
                 <div className="w-3 h-3 rounded-full bg-green-500 shrink-0" />
-                <span className="text-gray-600">Completed</span>
+                <span className="text-muted-foreground">Completed</span>
               </div>
               <div className="flex items-center gap-2 whitespace-nowrap">
                 <div className="w-3 h-3 rounded-full bg-orange-500 shrink-0" />
-                <span className="text-gray-600">Invalid</span>
+                <span className="text-muted-foreground">Invalid</span>
               </div>
               <div className="flex items-center gap-2 whitespace-nowrap">
                 <div className="w-3 h-3 rounded-full bg-red-500 shrink-0" />
-                <span className="text-gray-600">Error</span>
+                <span className="text-muted-foreground">Error</span>
               </div>
             </div>
           </div>
@@ -174,7 +174,7 @@ export function ProcessingModal() {
               return (
                 <div
                   key={projectId}
-                  className="flex items-start gap-3 p-3 bg-white border rounded-lg"
+                  className="flex items-start gap-3 p-3 bg-card border rounded-lg"
                 >
                   <div
                     className={cn(
@@ -187,7 +187,7 @@ export function ProcessingModal() {
                     <div className="font-medium text-sm truncate">
                       {project?.project_title || "Unknown Project"}
                     </div>
-                    <div className="text-xs text-gray-500 mt-0.5">
+                    <div className="text-xs text-muted-foreground mt-0.5">
                       {description}
                     </div>
                   </div>

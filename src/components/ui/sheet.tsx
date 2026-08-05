@@ -76,7 +76,7 @@ function SheetContent({
         {children}
         <SheetPrimitive.Close
           className={cn(
-            "ring-offset-background focus:ring-ring absolute top-4 right-4 rounded-md p-1.5 text-gray-400 opacity-70 transition-opacity hover:opacity-100 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-gray-800 dark:hover:text-gray-200 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none",
+            "ring-offset-background focus:ring-ring absolute top-4 right-4 rounded-md p-1.5 text-muted-foreground opacity-70 transition-opacity hover:opacity-100 hover:bg-accent hover:text-foreground focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none",
             closeButtonClassName,
           )}
         >

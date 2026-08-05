@@ -20,7 +20,7 @@ export function AppShell({
   presenceUsers,
 }: AppShellProps) {
   return (
-    <div className="flex h-screen flex-col bg-gray-50">
+    <div className="flex h-screen flex-col bg-background">
       <TopBar
         selectedEvent={selectedEvent}
         selectedProject={selectedProject}

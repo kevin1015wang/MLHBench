@@ -130,8 +130,8 @@ function EventImage({
 
   if (!logoUrl || imageError) {
     return (
-      <div className="w-16 h-16 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
-        <ImageOff className="w-8 h-8 text-gray-400" />
+      <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center shrink-0">
+        <ImageOff className="w-8 h-8 text-muted-foreground" />
       </div>
     );
   }
@@ -142,7 +142,7 @@ function EventImage({
       alt={eventName}
       width={64}
       height={64}
-      className="w-16 h-16 rounded-lg object-cover bg-gray-100 shrink-0"
+      className="w-16 h-16 rounded-lg object-cover bg-muted shrink-0"
       onError={() => setImageError(true)}
     />
   );
@@ -211,10 +211,10 @@ export function EventsPage() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-3xl font-bold text-foreground">
             Hackathon Events
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
+          <p className="text-muted-foreground mt-1">
             Manage and review hackathon projects
           </p>
         </div>
@@ -254,7 +254,7 @@ export function EventsPage() {
 
       <div className="flex gap-4">
         <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Search events..."
             value={searchQuery}
@@ -310,7 +310,7 @@ export function EventsPage() {
                                 "bg-green-500 text-white shrink-0";
                             } else if (status.type === "upcoming") {
                               badgeClassName =
-                                "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-100 shrink-0";
+                                "bg-secondary text-secondary-foreground shrink-0";
                             }
                             return (
                               <Badge
@@ -326,7 +326,7 @@ export function EventsPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-7 w-7 text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:text-gray-200 dark:hover:bg-gray-800"
+                              className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-accent"
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
@@ -338,7 +338,7 @@ export function EventsPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-7 w-7 text-gray-400 hover:text-destructive hover:bg-destructive/10"
+                              className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
@@ -353,7 +353,7 @@ export function EventsPage() {
                     </div>
 
                     {formatEventDateDisplay(event) && (
-                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Calendar className="w-4 h-4 shrink-0" />
                         <span className="min-w-0 flex-1 truncate">
                           {formatEventDateDisplay(event)}
@@ -361,7 +361,7 @@ export function EventsPage() {
                       </div>
                     )}
 
-                    <div className="flex items-center justify-between gap-3 text-sm text-gray-600">
+                    <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
                       {event.city || event.state || event.country ? (
                         <div className="flex items-center gap-2 min-w-0 flex-1">
                           <MapPin className="w-4 h-4 shrink-0" />
@@ -382,7 +382,7 @@ export function EventsPage() {
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <span className="inline-flex items-center gap-1 text-gray-600 dark:text-gray-400">
+                              <span className="inline-flex items-center gap-1 text-muted-foreground">
                                 <Folder className="w-4 h-4 shrink-0" />
                                 <span className="font-medium">
                                   {projectCount}
@@ -410,11 +410,11 @@ export function EventsPage() {
       {pastEvents.length > 0 && (
         <div className="space-y-4">
           <div className="flex items-center gap-4 py-8">
-            <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
-            <div className="text-sm font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">
+            <div className="h-px flex-1 bg-border" />
+            <div className="text-sm font-medium text-muted-foreground whitespace-nowrap">
               Past events
             </div>
-            <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
+            <div className="h-px flex-1 bg-border" />
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -457,7 +457,7 @@ export function EventsPage() {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-7 w-7 text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:text-gray-200 dark:hover:bg-gray-800"
+                                  className="h-7 w-7 text-muted-foreground hover:text-foreground hover:bg-accent"
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
@@ -469,7 +469,7 @@ export function EventsPage() {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className="h-7 w-7 text-gray-400 hover:text-destructive hover:bg-destructive/10"
+                                  className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
@@ -484,7 +484,7 @@ export function EventsPage() {
                         </div>
 
                         {formatEventDateDisplay(event) && (
-                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             <Calendar className="w-4 h-4 shrink-0" />
                             <span className="min-w-0 flex-1 truncate">
                               {formatEventDateDisplay(event)}
@@ -492,7 +492,7 @@ export function EventsPage() {
                           </div>
                         )}
 
-                        <div className="flex items-center justify-between gap-3 text-sm text-gray-600">
+                        <div className="flex items-center justify-between gap-3 text-sm text-muted-foreground">
                           {event.city || event.state || event.country ? (
                             <div className="flex items-center gap-2 min-w-0 flex-1">
                               <MapPin className="w-4 h-4 shrink-0" />
@@ -513,7 +513,7 @@ export function EventsPage() {
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <span className="inline-flex items-center gap-1 text-gray-600 dark:text-gray-400">
+                                  <span className="inline-flex items-center gap-1 text-muted-foreground">
                                     <Folder className="w-4 h-4 shrink-0" />
                                     <span className="font-medium">
                                       {projectCount}
@@ -542,7 +542,7 @@ export function EventsPage() {
 
       {currentEvents.length === 0 && pastEvents.length === 0 && (
         <div className="text-center py-12">
-          <p className="text-gray-500">
+          <p className="text-muted-foreground">
             No events found matching your criteria
           </p>
         </div>

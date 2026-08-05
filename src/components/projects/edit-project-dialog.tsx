@@ -182,7 +182,7 @@ export function EditProjectDialog({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="shrink-0 text-gray-400 hover:text-destructive"
+                    className="shrink-0 text-muted-foreground hover:text-destructive"
                     onClick={() => removeLink(index)}
                     disabled={isSubmitting || links.length === 1}
                     aria-label="Remove link"

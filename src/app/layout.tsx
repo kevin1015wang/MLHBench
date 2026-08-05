@@ -5,6 +5,7 @@ import "./globals.css";
 import { NotificationProvider } from "@/components/notification-provider";
 import { JudgingTimerProvider } from "@/components/providers/judging-timer-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
+import { ThemeProvider } from "@/components/providers/theme-provider";
 
 const openSans = Open_Sans({
   subsets: ["latin"],
@@ -35,18 +36,25 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full">
+    <html lang="en" className="h-full" suppressHydrationWarning>
       <body
         className={`${openSans.variable} ${spaceMono.variable} font-sans antialiased h-full`}
       >
-        <NuqsAdapter>
-          <QueryProvider>
-            <JudgingTimerProvider>
-              {children}
-              <NotificationProvider />
-            </JudgingTimerProvider>
-          </QueryProvider>
-        </NuqsAdapter>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <NuqsAdapter>
+            <QueryProvider>
+              <JudgingTimerProvider>
+                {children}
+                <NotificationProvider />
+              </JudgingTimerProvider>
+            </QueryProvider>
+          </NuqsAdapter>
+        </ThemeProvider>
       </body>
     </html>
   );

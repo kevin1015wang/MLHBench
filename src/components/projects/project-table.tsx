@@ -701,7 +701,7 @@ export function ProjectTable({
             <button
               type="button"
               onClick={() => handleToggleFavorite(row.original.id)}
-              className="p-1.5 hover:bg-gray-100 rounded-md transition-all border border-transparent hover:border-gray-300 shadow-sm hover:shadow"
+              className="p-1.5 hover:bg-accent rounded-md transition-all border border-transparent hover:border-border shadow-sm hover:shadow"
               aria-label={
                 isFavorite ? "Remove from favorites" : "Add to favorites"
               }
@@ -710,7 +710,7 @@ export function ProjectTable({
                 className={`h-4 w-4 ${
                   isFavorite
                     ? "fill-yellow-500 text-yellow-500"
-                    : "text-gray-400"
+                    : "text-muted-foreground"
                 }`}
               />
             </button>

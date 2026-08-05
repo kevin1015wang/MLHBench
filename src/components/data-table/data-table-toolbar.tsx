@@ -399,7 +399,7 @@ export function DataTableToolbar<TData>({
     <div className="flex flex-wrap items-center justify-between gap-2">
       <div className="flex flex-1 flex-wrap items-center gap-2">
         <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Search projects..."
             value={globalFilter}

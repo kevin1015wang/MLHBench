@@ -69,8 +69,6 @@ function DashboardContent({ children }: DashboardRootProps) {
     addNotification,
   } = useStore();
   const { user } = useSession();
-  // Using next-themes for theme management instead of store
-  // const { theme } = useTheme(); // Assuming we want to use it, but for now just removing the broken store reference
 
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
