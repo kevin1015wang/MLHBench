@@ -27,7 +27,7 @@ export function DataTable<TData>({
   return (
     <div className="data-table-container space-y-4 relative">
       {children}
-      <div className="rounded-md border relative">
+      <div className="rounded-md border bg-card shadow-sm relative">
         <div className="relative w-full overflow-x-auto">
           <table className="w-full min-w-[900px] caption-bottom text-sm">
             <TableHeader>
@@ -46,7 +46,7 @@ export function DataTable<TData>({
                           position: "sticky",
                           zIndex: (Number(pinningStyles.zIndex) || 0) + 10,
                         }}
-                        className="h-12 sticky top-0 bg-background shadow-sm"
+                        className="h-12 sticky top-0 bg-card shadow-sm"
                         scope="col"
                       >
                         {header.isPlaceholder

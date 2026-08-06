@@ -276,14 +276,6 @@ export function ProjectsView({
               </Tooltip>
             </TooltipProvider>
           )}
-          {timerInfo?.type === "ended" && (
-            <Badge
-              variant="outline"
-              className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400"
-            >
-              {timerInfo.message}
-            </Badge>
-          )}
         </div>
       </div>
 
