@@ -28,7 +28,10 @@ import { PresenceAvatars } from "@/components/navigation/presence-avatars";
 import { ProcessingModal } from "@/components/processing-modal";
 import { ReviewView } from "@/components/projects/review-view";
 import { SaveStatusIndicator } from "@/components/save-status-indicator";
-import { StatusBadge } from "@/components/status/status-badge";
+import {
+  OutsideWindowBadge,
+  StatusBadge,
+} from "@/components/status/status-badge";
 import { StatusIcon } from "@/components/status/status-icon";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -235,26 +238,13 @@ const complexityOptions = [
   { label: "Advanced", value: "advanced" },
 ];
 
-// Helper function to check if a project is failed/invalid/errored
-// Note: For reruns, we explicitly EXCLUDE projects that are invalid because
-// they fall outside the event window or have no GitHub repository.
+// Helper function to check if a project is failed/invalid/errored, for the
+// "Rerun Failed" bulk action. commits_outside_window is a separate,
+// non-blocking flag now (see hackingTimelineAgent), so it doesn't appear
+// here -- a flagged project can be `processed` and simply isn't "failed".
 function isFailedOrInvalidOrErrored(status: ProjectProcessingStatus): boolean {
   if (status === "errored") return true;
-
-  if (!status.startsWith("invalid:")) return false;
-
-  // Exclude these invalid types from "rerun failed" flows:
-  // - invalid:github_inaccessible (no GitHub repository / inaccessible)
-  // - invalid:rule_violation (e.g. commits outside event window)
-  // if (
-  //   status === "invalid:github_inaccessible" ||
-  //   status === "invalid:rule_violation"
-  // ) {
-  //   return false;
-  // }
-
-  // Any other invalid status (if added in the future) is treated as rerunnable
-  return true;
+  return status.startsWith("invalid:");
 }
 
 export function ProjectTable({
@@ -797,37 +787,48 @@ export function ProjectTable({
         },
         cell: ({ cell, row }) => {
           const status = cell.getValue<ProjectProcessingStatus>();
+          const project = row.original;
           const tooltipMessage =
             status === "processed"
               ? undefined
-              : getStatusTooltipMessage(row.original);
+              : getStatusTooltipMessage(project);
           const tooltipTitle =
             status === "processed" ? undefined : getStatusLabel(status);
 
           const icon = <StatusIcon status={status} className="h-5! w-5!" />;
 
-          const iconWrapper = (
-            <div className="flex items-center justify-center w-5 h-5">
-              {icon}
-            </div>
-          );
+          const statusNode =
+            status === "processed" ? (
+              <div className="flex items-center justify-center w-5 h-5">
+                {icon}
+              </div>
+            ) : (
+              <StatusBadge
+                kind="project"
+                status={status}
+                tooltipTitle={tooltipTitle}
+                tooltip={tooltipMessage}
+                showInfoIcon={false}
+                noRounded
+                className="border-0 bg-transparent p-0 flex items-center justify-center"
+              >
+                {icon}
+              </StatusBadge>
+            );
 
-          if (status === "processed") {
-            return iconWrapper;
+          // Independent of `status` -- a project can be fully processed and
+          // still be flagged for having commits outside the event window.
+          if (!project.commits_outside_window) {
+            return statusNode;
           }
 
           return (
-            <StatusBadge
-              kind="project"
-              status={status}
-              tooltipTitle={tooltipTitle}
-              tooltip={tooltipMessage}
-              showInfoIcon={false}
-              noRounded
-              className="border-0 bg-transparent p-0 flex items-center justify-center"
-            >
-              {icon}
-            </StatusBadge>
+            <div className="flex items-center gap-1">
+              {statusNode}
+              <OutsideWindowBadge
+                message={project.commits_outside_window_message}
+              />
+            </div>
           );
         },
         meta: {
@@ -1391,14 +1392,19 @@ export function ProjectTable({
   const handleRunAll = () => {
     // Run all projects that:
     // - Have at least one prize track
-    // - Are NOT invalid because they fall outside the event window
-    //   or because they don't have a GitHub repository
+    // - Are NOT invalid because they don't have an accessible GitHub repository
+    //
+    // invalid:rule_violation is no longer produced by the review pipeline --
+    // a commit-window violation is now a non-blocking flag
+    // (commits_outside_window) instead, so those projects still get run
+    // normally here. This exclusion only still matters for legacy rows from
+    // before that change; running them again will migrate them to the new
+    // flag-based behavior.
     const allIds = filteredData
       .filter((p) => {
         const hasPrizeTracks = getPrizeTracks(p).length > 0;
         const isExcludedInvalidStatus =
-          p.status === "invalid:github_inaccessible" ||
-          p.status === "invalid:rule_violation";
+          p.status === "invalid:github_inaccessible";
 
         return hasPrizeTracks && !isExcludedInvalidStatus;
       })

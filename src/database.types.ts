@@ -213,6 +213,8 @@ export type Database = {
         Row: {
           about_the_project: string | null
           built_with: string
+          commits_outside_window: boolean
+          commits_outside_window_message: string | null
           created_at: string
           csv_row: Json
           description_accuracy_level:
@@ -254,6 +256,8 @@ export type Database = {
         Insert: {
           about_the_project?: string | null
           built_with?: string
+          commits_outside_window?: boolean
+          commits_outside_window_message?: string | null
           created_at?: string
           csv_row?: Json
           description_accuracy_level?:
@@ -295,6 +299,8 @@ export type Database = {
         Update: {
           about_the_project?: string | null
           built_with?: string
+          commits_outside_window?: boolean
+          commits_outside_window_message?: string | null
           created_at?: string
           csv_row?: Json
           description_accuracy_level?:

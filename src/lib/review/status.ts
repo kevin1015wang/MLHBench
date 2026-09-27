@@ -41,6 +41,8 @@ export async function markProcessing(
       tech_stack: [],
       prize_results: pendingPrizeResults,
       repo_content_truncated: false,
+      commits_outside_window: false,
+      commits_outside_window_message: null,
     })
     .eq("id", projectId);
 
@@ -96,6 +98,8 @@ export async function resetAgentAugmentedFields(
       tech_stack: [],
       prize_results: {},
       repo_content_truncated: false,
+      commits_outside_window: false,
+      commits_outside_window_message: null,
     })
     .eq("id", projectId);
 

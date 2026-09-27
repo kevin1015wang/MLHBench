@@ -35,6 +35,8 @@ export async function startProjectReview(project: ProjectWithEvent) {
   context.project.tech_stack = [];
   context.project.prize_results = prizeResults;
   context.project.repo_content_truncated = false;
+  context.project.commits_outside_window = false;
+  context.project.commits_outside_window_message = null;
 
   const { ok: validateGitHubRepoOk, data: repoInfo } =
     await validateGithubRepoAgent(context);

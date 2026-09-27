@@ -163,6 +163,14 @@ create table projects (
   -- True when the gitingest repo content exceeded the review model's context
   -- window and had to be cut down before the code/prize review agents ran.
   repo_content_truncated boolean not null default false,
+  -- True when the review pipeline found the repo's first/last commit outside
+  -- the event's starts_at/ends_at window. This no longer blocks the review:
+  -- the code/prize review agents still run so judges get real AI analysis of
+  -- what the team built, and this flag (plus its message) is how the rule
+  -- violation surfaces instead. See hackingTimelineAgent in
+  -- src/lib/review/agents/2-hacking-timeline.ts.
+  commits_outside_window boolean not null default false,
+  commits_outside_window_message text,
 
   prize_results jsonb not null default '{}'::jsonb,
 

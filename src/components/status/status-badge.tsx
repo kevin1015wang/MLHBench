@@ -1,6 +1,6 @@
 "use client";
 
-import { Info } from "lucide-react";
+import { CalendarX, Info } from "lucide-react";
 import type * as React from "react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -122,6 +122,42 @@ export function StatusBadge(props: StatusBadgeProps) {
             {!tooltipTitle && !tooltipBody ? <p>{defaultLabel}</p> : null}
           </TooltipContent>
         )}
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+// A standalone flag, independent of `status` -- a project can be `processed`
+// (full AI review ran) and still have this set, since the review pipeline no
+// longer blocks on a commit-window violation. See hackingTimelineAgent.
+export function OutsideWindowBadge({
+  message,
+  className,
+}: {
+  readonly message?: string | null;
+  readonly className?: string;
+}) {
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge
+            variant="outline"
+            className={cn(
+              "border-0 flex items-center gap-1 cursor-help",
+              "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300",
+              className,
+            )}
+          >
+            <CalendarX className="w-3 h-3 shrink-0" />
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-72 text-wrap wrap-break-word">
+          <div className="flex items-center gap-1.5">
+            <span className="font-semibold">Outside event window</span>
+          </div>
+          {message ? <p>{message}</p> : null}
+        </TooltipContent>
       </Tooltip>
     </TooltipProvider>
   );
