@@ -1223,15 +1223,15 @@ export function ProjectTable({
     viewersByProjectId.get,
   ]);
 
-  // Merge persisted column visibility with default visibility.
-  // Judging view is a fixed preset: Table, Status, Project, Links, MLH Prize
-  // Tracks, and Notes only. Everything else (select, favorite, score,
+  // Column visibility is driven entirely by the view mode.
+  // Judging view is a fixed preset: Favorite, Table, Status, Project, Links,
+  // MLH Prize Tracks, and Notes only. Everything else (select, score,
   // complexity/accuracy, actions) is only shown in the regular table view.
   const initialColumnVisibility = React.useMemo(() => {
     const isJudgingView = viewMode === "judging";
     const defaultVisibility: Record<string, boolean> = {
       select: !isJudgingView,
-      favorite: !isJudgingView,
+      favorite: true,
       judging_score: false,
       table_number: true,
       status: true,
@@ -1244,17 +1244,8 @@ export function ProjectTable({
       actions: !isJudgingView,
     };
 
-    // Merge with persisted visibility, but respect judging view defaults
-    if (persistedState.columnVisibility) {
-      return {
-        ...persistedState.columnVisibility,
-        // Always respect judging view defaults for these columns
-        ...defaultVisibility,
-      };
-    }
-
     return defaultVisibility;
-  }, [viewMode, persistedState.columnVisibility]);
+  }, [viewMode]);
 
   const { table, sorting } = useDataTable({
     data: filteredData,
@@ -1280,7 +1271,7 @@ export function ProjectTable({
   React.useEffect(() => {
     const isJudgingView = viewMode === "judging";
     table.getColumn("select")?.toggleVisibility(!isJudgingView);
-    table.getColumn("favorite")?.toggleVisibility(!isJudgingView);
+    table.getColumn("favorite")?.toggleVisibility(true);
     table.getColumn("judging_score")?.toggleVisibility(false);
     table.getColumn("table_number")?.toggleVisibility(true);
     table.getColumn("status")?.toggleVisibility(true);
@@ -1293,38 +1284,10 @@ export function ProjectTable({
     table.getColumn("actions")?.toggleVisibility(!isJudgingView);
   }, [viewMode, table]);
 
-  // Track the last eventId we restored column visibility for
-  const lastRestoredColumnVisibilityEventIdRef = React.useRef<
-    string | null | undefined
-  >(null);
   // Track the last eventId we restored sorting for
   const lastRestoredSortingEventIdRef = React.useRef<string | null | undefined>(
     null,
   );
-
-  // Restore column visibility from persisted state when eventId changes
-  React.useEffect(() => {
-    if (
-      eventId !== lastRestoredColumnVisibilityEventIdRef.current &&
-      persistedState.columnVisibility &&
-      table
-    ) {
-      lastRestoredColumnVisibilityEventIdRef.current = eventId;
-      Object.entries(persistedState.columnVisibility).forEach(
-        ([columnId, isVisible]) => {
-          // Don't override judging view defaults for these columns
-          if (
-            columnId !== "judging_score" &&
-            columnId !== "notes" &&
-            columnId !== "status" &&
-            columnId !== "actions"
-          ) {
-            table.getColumn(columnId)?.toggleVisibility(isVisible);
-          }
-        },
-      );
-    }
-  }, [eventId, persistedState.columnVisibility, table]);
 
   // Restore sorting from persisted state when eventId changes, falling back
   // to table order (same default as the initial mount) when this event has
@@ -1365,7 +1328,6 @@ export function ProjectTable({
       hasGithub: hasGithub ?? undefined,
       showMlhPrizesOnly,
       viewMode,
-      columnVisibility: table.getState().columnVisibility,
       sorting,
     };
 
@@ -1382,7 +1344,6 @@ export function ProjectTable({
     showMlhPrizesOnly,
     viewMode,
     sorting,
-    table,
   ]);
 
   const handleExportCSV = React.useCallback(() => {
