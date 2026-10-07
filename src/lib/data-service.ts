@@ -121,6 +121,27 @@ export async function recomputePrizeTracks(): Promise<{
   return response.json();
 }
 
+export async function remapEventPrizeColumn(
+  eventId: string,
+  column: string,
+): Promise<{ updated: number; failed: number }> {
+  const response = await fetch(`/api/events/${eventId}/prize-column`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ column }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null);
+    const message =
+      (errorBody && (errorBody.error as string)) ||
+      "Failed to remap prize column";
+    throw new Error(message);
+  }
+
+  return response.json();
+}
+
 export async function startProjectReview(projectId: string) {
   const response = await fetch("/api/projects/start-review", {
     method: "POST",

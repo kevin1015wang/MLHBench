@@ -2,6 +2,10 @@
 
 import { X } from "lucide-react";
 import { useCallback, useState } from "react";
+import {
+  PrizeColumnSelect,
+  useCsvPrizeColumn,
+} from "@/components/projects/prize-column-select";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -40,6 +44,7 @@ export function CSVImportDialog({
   const [files, setFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { headers, prizeColumn, setPrizeColumn } = useCsvPrizeColumn(files[0]);
 
   const handleFileValidate = (file: File) => {
     if (!file.name.endsWith(".csv")) {
@@ -62,6 +67,7 @@ export function CSVImportDialog({
       const formData = new FormData();
       formData.append("file", file);
       formData.append("event_id", eventId);
+      formData.append("prize_column", prizeColumn);
 
       try {
         const response = await fetch("/api/projects/import-csv", {
@@ -87,7 +93,7 @@ export function CSVImportDialog({
         setIsUploading(false);
       }
     },
-    [eventId, onImport, onOpenChange],
+    [eventId, prizeColumn, onImport, onOpenChange],
   );
 
   return (
@@ -151,6 +157,13 @@ export function CSVImportDialog({
             </FileUploadList>
           </FileUpload>
 
+          <PrizeColumnSelect
+            headers={headers}
+            value={prizeColumn}
+            onValueChange={setPrizeColumn}
+            disabled={isUploading}
+          />
+
           {error && (
             <div className="bg-destructive/10 border border-destructive/30 text-destructive text-sm p-3 rounded-md">
               {error}
@@ -173,7 +186,7 @@ export function CSVImportDialog({
                 handleUpload(files);
               }
             }}
-            disabled={files.length === 0 || isUploading}
+            disabled={files.length === 0 || !prizeColumn || isUploading}
             type="button"
           >
             {isUploading ? "Importing..." : "Import"}

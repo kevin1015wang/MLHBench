@@ -1,8 +1,12 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { EventGuestAccess } from "@/components/events/event-guest-access";
+import {
+  DEFAULT_PRIZE_COLUMN,
+  PrizeColumnSelect,
+} from "@/components/projects/prize-column-select";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,13 +28,42 @@ import {
 } from "@/components/ui/file-upload";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { Event } from "@/lib/store";
+import { getProjects, remapEventPrizeColumn } from "@/lib/data-service";
+import { type Event, type Project, useStore } from "@/lib/store";
 import { uploadEventImage } from "@/lib/upload-event-image";
 
 interface EditEventDialogProps {
   readonly event: Event | null;
   readonly onOpenChange: (open: boolean) => void;
   readonly onSaved: (event: Event) => void;
+}
+
+function csvRowOf(project: Project): Record<string, unknown> {
+  return project.csv_row && typeof project.csv_row === "object"
+    ? (project.csv_row as Record<string, unknown>)
+    : {};
+}
+
+// Guesses which CSV column an event's opt_in_prizes was imported from: the
+// column whose value matches the most projects' non-empty opt_in_prizes.
+// Falls back to the default column when nothing matches (e.g. the import
+// read an empty column).
+function inferPrizeColumn(projects: Project[], headers: string[]) {
+  let best = "";
+  let bestCount = 0;
+  headers.forEach((header) => {
+    const count = projects.filter((project) => {
+      const prizes = project.opt_in_prizes?.trim();
+      const value = csvRowOf(project)[header];
+      return prizes && typeof value === "string" && value.trim() === prizes;
+    }).length;
+    if (count > bestCount) {
+      best = header;
+      bestCount = count;
+    }
+  });
+  if (best) return best;
+  return headers.includes(DEFAULT_PRIZE_COLUMN) ? DEFAULT_PRIZE_COLUMN : "";
 }
 
 function formatForDateInput(dateString: string | null | undefined) {
@@ -64,6 +97,31 @@ export function EditEventDialog({
   const [hackathonEnd, setHackathonEnd] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { projects, setProjects } = useStore();
+
+  const eventProjects = useMemo(
+    () => (event ? projects.filter((p) => p.event_id === event.id) : []),
+    [projects, event],
+  );
+  const csvHeaders = useMemo(() => {
+    const headers = new Set<string>();
+    eventProjects.forEach((project) => {
+      Object.keys(csvRowOf(project)).forEach((key) => {
+        if (key.trim()) headers.add(key);
+      });
+    });
+    return Array.from(headers);
+  }, [eventProjects]);
+  const currentPrizeColumn = useMemo(
+    () => inferPrizeColumn(eventProjects, csvHeaders),
+    [eventProjects, csvHeaders],
+  );
+  const [prizeColumn, setPrizeColumn] = useState("");
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: resets only when a different event opens, so live project sync can't clobber the selection mid-edit
+  useEffect(() => {
+    setPrizeColumn(currentPrizeColumn);
+  }, [event?.id]);
 
   useEffect(() => {
     if (event) {
@@ -136,6 +194,16 @@ export function EditEventDialog({
       const { event: updatedEvent } = (await response.json()) as {
         event: Event;
       };
+
+      if (prizeColumn && prizeColumn !== currentPrizeColumn) {
+        await remapEventPrizeColumn(event.id, prizeColumn);
+        const freshProjects = await getProjects(event.id);
+        setProjects([
+          ...projects.filter((p) => p.event_id !== event.id),
+          ...freshProjects,
+        ]);
+      }
+
       onSaved(updatedEvent);
       onOpenChange(false);
     } catch (err) {
@@ -269,6 +337,13 @@ export function EditEventDialog({
               disabled={isSaving}
             />
           </div>
+
+          <PrizeColumnSelect
+            headers={csvHeaders}
+            value={prizeColumn}
+            onValueChange={setPrizeColumn}
+            disabled={isSaving}
+          />
 
           <div className="space-y-2">
             <Label>Guest Access</Label>

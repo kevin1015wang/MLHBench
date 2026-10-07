@@ -3,6 +3,10 @@
 import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
+import {
+  PrizeColumnSelect,
+  useCsvPrizeColumn,
+} from "@/components/projects/prize-column-select";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -58,6 +62,7 @@ export function NewEventDialog({ open, onOpenChange }: NewEventDialogProps) {
   const [judgingEndTime, setJudgingEndTime] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { headers, prizeColumn, setPrizeColumn } = useCsvPrizeColumn(files[0]);
 
   const reset = useCallback(() => {
     setFiles([]);
@@ -95,7 +100,8 @@ export function NewEventDialog({ open, onOpenChange }: NewEventDialogProps) {
     }
   };
 
-  const canSubmit = files.length > 0 && name.trim() && !isSubmitting;
+  const canSubmit =
+    files.length > 0 && prizeColumn && name.trim() && !isSubmitting;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -137,6 +143,7 @@ export function NewEventDialog({ open, onOpenChange }: NewEventDialogProps) {
       const formData = new FormData();
       formData.append("file", files[0]);
       formData.append("event_id", event.id);
+      formData.append("prize_column", prizeColumn);
 
       const importResponse = await fetch("/api/projects/import-csv", {
         method: "POST",
@@ -241,6 +248,13 @@ export function NewEventDialog({ open, onOpenChange }: NewEventDialogProps) {
               </FileUploadList>
             </FileUpload>
           </div>
+
+          <PrizeColumnSelect
+            headers={headers}
+            value={prizeColumn}
+            onValueChange={setPrizeColumn}
+            disabled={isSubmitting}
+          />
 
           <div className="space-y-2">
             <Label htmlFor="new-event-name">Event Name</Label>

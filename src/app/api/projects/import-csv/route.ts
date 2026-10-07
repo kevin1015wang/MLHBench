@@ -9,6 +9,8 @@ import { matchPrizeCategorySlugs } from "@/lib/prize-category-matching";
 import { createClient } from "@/lib/supabase/server";
 import { isUrl } from "@/lib/utils/string-utils";
 
+const DEFAULT_PRIZE_COLUMN = "Opt-In Prizes";
+
 type ProjectInsert = Database["public"]["Tables"]["projects"]["Insert"];
 type CsvRecord = Record<string, string>;
 type PrizeCategory = {
@@ -23,6 +25,11 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const file = formData.get("file");
     const eventId = formData.get("event_id");
+    const prizeColumnRaw = formData.get("prize_column");
+    const prizeColumn =
+      typeof prizeColumnRaw === "string" && prizeColumnRaw.trim()
+        ? prizeColumnRaw.trim()
+        : DEFAULT_PRIZE_COLUMN;
 
     if (typeof eventId !== "string" || !eventId.trim()) {
       return NextResponse.json(
@@ -62,7 +69,7 @@ export async function POST(request: Request) {
       "Submission Url",
       "About The Project",
       "Video Demo Link",
-      "Opt-In Prizes",
+      prizeColumn,
       "Built With",
       "Submitter First Name",
       "Submitter Last Name",
@@ -128,7 +135,12 @@ export async function POST(request: Request) {
         );
       })
       .map((record) =>
-        mapRecordToProject(eventId.trim(), record, prizeCategories ?? []),
+        mapRecordToProject(
+          eventId.trim(),
+          record,
+          prizeCategories ?? [],
+          prizeColumn,
+        ),
       );
 
     if (!inserts.length) {
@@ -171,6 +183,7 @@ function mapRecordToProject(
   eventId: string,
   record: CsvRecord,
   prizeCategories: PrizeCategory[],
+  prizeColumn: string,
 ): ProjectInsert {
   const csvRow: Record<string, string> = {};
   Object.entries(record).forEach(([key, value]) => {
@@ -192,7 +205,7 @@ function mapRecordToProject(
   project.submission_url = record["Submission Url"] || null;
   project.about_the_project = record["About The Project"] || null;
   project.video_demo_link = record["Video Demo Link"] || null;
-  project.opt_in_prizes = record["Opt-In Prizes"]?.trim() || "";
+  project.opt_in_prizes = record[prizeColumn]?.trim() || "";
   project.built_with = record["Built With"]?.trim() || "";
   project.submitter_first_name = record["Submitter First Name"] || null;
   project.submitter_last_name = record["Submitter Last Name"] || null;
