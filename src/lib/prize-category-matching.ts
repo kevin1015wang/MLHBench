@@ -16,12 +16,30 @@ export type PrizeCategoryMatchInput = {
 // Note a bare/MLH-prefixed entry is only a *candidate* -- see
 // matchPrizeCategorySlugs for the step that decides whether it's actually an
 // MLH prize track (i.e. whether it's been configured in prize_categories).
+// Devpost joins the list as English prose: "A and B" for two entries and
+// "A, B, and C" for three or more, so the last entry arrives as "and C" (or
+// "A and B" with no comma at all). A bare " and " can't be split on blindly
+// since prize names themselves can contain it ("Best Hardware and IoT Hack"),
+// so a mid-entry " and " only splits when what follows looks like the start
+// of a new sponsor-prefixed entry ("[MLH] ..." or "MLH: ...").
+function splitPrizeList(optInPrizes: string): string[] {
+  return optInPrizes
+    .split(",")
+    .flatMap((entry) =>
+      entry
+        .trim()
+        .replace(/^and\s+/i, "")
+        .split(/\s+and\s+(?=\[[^\]]+\]|[^:,]{1,40}:\s)/i),
+    )
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
 export function extractMlhCandidateSlugs(optInPrizes: string): string[] {
   if (!optInPrizes.trim()) return [];
   const candidates = new Set<string>();
 
-  optInPrizes.split(",").forEach((entry) => {
-    const trimmed = entry.trim();
+  splitPrizeList(optInPrizes).forEach((trimmed) => {
     if (!trimmed) return;
 
     const prefixMatch = trimmed.match(/^([^:]+):\s*(.+)$/);
