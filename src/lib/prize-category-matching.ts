@@ -5,17 +5,6 @@ export type PrizeCategoryMatchInput = {
   alias_slugs: string[];
 };
 
-// Devpost's "Opt-In Prizes" column format varies by event: some prefix every
-// entry with "<Sponsor>: " (e.g. "MLH: Best Use of Gemini API", "Deloitte:
-// Green AI"), others just list bare prize names with no sponsor info at all
-// (e.g. "Best Use of Gemini API"). We only want MLH-sponsored prizes, since
-// prize review is scoped to MLH prize tracks -- so entries explicitly
-// prefixed with a *different* sponsor are skipped, while both MLH-prefixed
-// and un-prefixed entries are treated as MLH-prize candidates.
-//
-// Note a bare/MLH-prefixed entry is only a *candidate* -- see
-// matchPrizeCategorySlugs for the step that decides whether it's actually an
-// MLH prize track (i.e. whether it's been configured in prize_categories).
 // Devpost joins the list as English prose: "A and B" for two entries and
 // "A, B, and C" for three or more, so the last entry arrives as "and C" (or
 // "A and B" with no comma at all). A bare " and " can't be split on blindly
@@ -35,19 +24,37 @@ function splitPrizeList(optInPrizes: string): string[] {
     .filter(Boolean);
 }
 
+// Devpost's "Opt-In Prizes" column format varies by event: some prefix every
+// entry with a sponsor, either "<Sponsor>: " (e.g. "MLH: Best Use of Gemini
+// API", "Deloitte: Green AI") or "[<Sponsor>] " (e.g. "[MLH] Best Use of
+// Auth0", "[Mercedes] Best Application of Computer Vision"), others just list
+// bare prize names with no sponsor info at all (e.g. "Best Use of Gemini
+// API"). We only want MLH-sponsored prizes, since prize review is scoped to
+// MLH prize tracks -- so entries explicitly prefixed with a *different*
+// sponsor are skipped, while both MLH-prefixed and un-prefixed entries are
+// treated as MLH-prize candidates.
+//
+// An MLH-prefixed entry yields two candidates, with and without the "mlh-"
+// prefix, since prize_categories slugs are named both ways (e.g.
+// "best-use-of-auth0" vs "mlh-best-use-of-tiger-data").
+//
+// Note a bare/MLH-prefixed entry is only a *candidate* -- see
+// matchPrizeCategorySlugs for the step that decides whether it's actually an
+// MLH prize track (i.e. whether it's been configured in prize_categories).
 export function extractMlhCandidateSlugs(optInPrizes: string): string[] {
   if (!optInPrizes.trim()) return [];
   const candidates = new Set<string>();
 
-  splitPrizeList(optInPrizes).forEach((trimmed) => {
-    if (!trimmed) return;
-
-    const prefixMatch = trimmed.match(/^([^:]+):\s*(.+)$/);
+  splitPrizeList(optInPrizes).forEach((entry) => {
+    const prefixMatch =
+      entry.match(/^\[([^\]]+)\]\s*(.+)$/) ?? entry.match(/^([^:]+):\s*(.+)$/);
     if (prefixMatch && !/^mlh$/i.test(prefixMatch[1].trim())) return;
 
-    const name = prefixMatch ? prefixMatch[2].trim() : trimmed;
+    const name = prefixMatch ? prefixMatch[2].trim() : entry;
     const slug = slugify(name);
-    if (slug) candidates.add(slug);
+    if (!slug) return;
+    candidates.add(slug);
+    if (prefixMatch) candidates.add(`mlh-${slug}`);
   });
 
   return Array.from(candidates);
