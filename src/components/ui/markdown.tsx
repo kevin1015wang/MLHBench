@@ -38,7 +38,15 @@ export function Markdown({ children, className }: MarkdownProps) {
   if (!children) return null;
 
   return (
-    <div className={clsx("prose prose-sm max-w-none", className)}>
+    // wrap-anywhere: AI review text often has long unbreakable tokens (URLs,
+    // file paths in inline code) that would otherwise force the container
+    // wider than a phone screen.
+    <div
+      className={clsx(
+        "prose prose-sm max-w-none wrap-anywhere [&_pre]:whitespace-pre-wrap",
+        className,
+      )}
+    >
       <ReactMarkdown components={components}>{children}</ReactMarkdown>
     </div>
   );

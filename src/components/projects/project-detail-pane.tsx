@@ -485,8 +485,8 @@ export function ProjectDetailPane({
           )}
         </div>
 
-        <div className="flex-1 overflow-y-auto">
-          <div className="px-8 py-6 space-y-4 bg-muted/50">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden">
+          <div className="px-4 sm:px-8 py-6 space-y-4 bg-muted/50">
             <JudgingTimerCard />
 
             <div className="bg-card border border-border rounded-xl p-5 shadow-sm space-y-3">
@@ -576,7 +576,7 @@ export function ProjectDetailPane({
                   <div className="w-10 h-10 rounded-lg bg-(--mlh-purple) flex items-center justify-center shrink-0">
                     <Code2 className="w-5 h-5 text-white" />
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <h3 className="text-xl font-semibold text-foreground mb-1">
                       Code Review
                     </h3>
@@ -695,7 +695,7 @@ export function ProjectDetailPane({
                         >
                           <div className="flex items-start gap-4">
                             {StatusIcon}
-                            <div className="space-y-1">
+                            <div className="min-w-0 space-y-1">
                               <h4 className="text-xl font-semibold text-foreground">
                                 {fullName}
                               </h4>
