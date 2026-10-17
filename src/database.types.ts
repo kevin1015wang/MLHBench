@@ -225,6 +225,7 @@ export type Database = {
           github_url: string | null
           id: string
           is_favorite: boolean
+          is_unconsidered: boolean
           judging_notes: string | null
           judging_rating: number | null
           judging_shortlist: boolean
@@ -268,6 +269,7 @@ export type Database = {
           github_url?: string | null
           id?: string
           is_favorite?: boolean
+          is_unconsidered?: boolean
           judging_notes?: string | null
           judging_rating?: number | null
           judging_shortlist?: boolean
@@ -311,6 +313,7 @@ export type Database = {
           github_url?: string | null
           id?: string
           is_favorite?: boolean
+          is_unconsidered?: boolean
           judging_notes?: string | null
           judging_rating?: number | null
           judging_shortlist?: boolean

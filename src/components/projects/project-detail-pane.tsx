@@ -2,6 +2,7 @@
 
 import {
   AlertTriangle,
+  Ban,
   CheckCircle2,
   Code2,
   ExternalLink,
@@ -240,7 +241,8 @@ export function ProjectDetailPane({
     prizeCategoryNameMap,
     prizeCategories,
   } = usePrizeCategories();
-  const { toggleFavoriteProject, updateProject } = useStore();
+  const { toggleFavoriteProject, toggleUnconsideredProject, updateProject } =
+    useStore();
   const { user } = useSession();
   const [isTitleExpanded, setIsTitleExpanded] = React.useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
@@ -317,97 +319,110 @@ export function ProjectDetailPane({
               <span className="sr-only">Close</span>
             </SheetClose>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-3 sm:flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => toggleFavoriteProject(project.id)}
-                  className="group shrink-0 p-1.5 hover:bg-muted rounded-md transition-all border border-transparent hover:border-border outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  aria-label={
-                    project.is_favorite
-                      ? "Remove from favorites"
-                      : "Add to favorites"
-                  }
+          {/* One wrapping row. On mobile the title is pulled to the front at
+              full width so it wraps horizontally, and every action drops to
+              the row(s) below it; from `sm` up it sits inline after the star. */}
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => toggleFavoriteProject(project.id)}
+              className="group shrink-0 p-1.5 hover:bg-muted rounded-md transition-all border border-transparent hover:border-border outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label={
+                project.is_favorite
+                  ? "Remove from favorites"
+                  : "Add to favorites"
+              }
+            >
+              <Star
+                className={`w-6 h-6 transition-colors ${
+                  project.is_favorite
+                    ? "fill-yellow-400 text-yellow-400"
+                    : "text-muted-foreground group-hover:text-muted-foreground"
+                }`}
+              />
+            </button>
+            <button
+              type="button"
+              onClick={() => toggleUnconsideredProject(project.id)}
+              className="shrink-0 p-1.5 hover:bg-muted rounded-md transition-all border border-transparent hover:border-border outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              aria-label={project.is_unconsidered ? "Reconsider" : "Unconsider"}
+              aria-pressed={project.is_unconsidered}
+              title={project.is_unconsidered ? "Reconsider" : "Unconsider"}
+            >
+              <Ban
+                className={`w-6 h-6 transition-colors ${
+                  project.is_unconsidered
+                    ? "text-red-500"
+                    : "text-muted-foreground"
+                }`}
+              />
+            </button>
+            <div className="order-first basis-full min-w-0 sm:order-none sm:basis-auto sm:max-w-full">
+              <button
+                type="button"
+                onClick={() => setIsTitleExpanded((prev) => !prev)}
+                className="block w-full text-left sm:pointer-events-none sm:cursor-default"
+              >
+                <SheetTitle
+                  className={`text-2xl sm:text-4xl font-bold text-foreground font-headline leading-tight sm:wrap-break-word ${
+                    isTitleExpanded ? "wrap-break-word" : "truncate"
+                  } ${project.is_unconsidered ? "opacity-50" : ""}`}
                 >
-                  <Star
-                    className={`w-6 h-6 transition-colors ${
-                      project.is_favorite
-                        ? "fill-yellow-400 text-yellow-400"
-                        : "text-muted-foreground group-hover:text-muted-foreground"
-                    }`}
-                  />
-                </button>
-                <div className="min-w-0 flex-1 sm:flex-initial sm:w-auto">
-                  <button
-                    type="button"
-                    onClick={() => setIsTitleExpanded((prev) => !prev)}
-                    className="block w-full text-left sm:pointer-events-none sm:cursor-default"
-                  >
-                    <SheetTitle
-                      className={`text-2xl sm:text-4xl font-bold text-foreground font-headline leading-tight sm:wrap-break-word ${
-                        isTitleExpanded ? "wrap-break-word" : "truncate"
-                      }`}
-                    >
-                      {project.project_title}
-                    </SheetTitle>
-                  </button>
-                </div>
-                {project.status === "processed" ? (
-                  <StatusIcon
-                    status={project.status}
-                    className="h-6! w-6! shrink-0"
-                  />
-                ) : (
-                  <StatusBadge
-                    kind="project"
-                    status={project.status}
-                    tooltipTitle={getStatusLabel(project.status)}
-                    tooltip={getStatusTooltipMessage(project)}
-                    showInfoIcon={false}
-                    noRounded
-                    className="border-0 bg-transparent p-0 flex items-center justify-center shrink-0"
-                  >
-                    <StatusIcon status={project.status} className="h-6! w-6!" />
-                  </StatusBadge>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setIsEditDialogOpen(true)}
-                  className="shrink-0 p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded-md transition-colors"
-                  aria-label="Edit project"
-                  title="Edit project"
-                >
-                  <Pencil className="w-5 h-5" />
-                </button>
-                <div className="hidden items-center gap-2 shrink-0 sm:flex">
-                  {project.github_url && (
-                    <a
-                      href={project.github_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-muted-foreground hover:text-foreground transition-colors"
-                      title="GitHub Repository"
-                    >
-                      <GithubIcon className="w-6 h-6" />
-                    </a>
-                  )}
-                  {project.submission_url && (
-                    <a
-                      href={project.submission_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-muted-foreground hover:text-[#003E54] transition-colors"
-                      title="Devpost Submission"
-                    >
-                      <DevpostIcon className="w-6 h-6" />
-                    </a>
-                  )}
-                </div>
-              </div>
+                  {project.project_title}
+                </SheetTitle>
+              </button>
             </div>
+            {project.status === "processed" ? (
+              <StatusIcon
+                status={project.status}
+                className="h-6! w-6! shrink-0"
+              />
+            ) : (
+              <StatusBadge
+                kind="project"
+                status={project.status}
+                tooltipTitle={getStatusLabel(project.status)}
+                tooltip={getStatusTooltipMessage(project)}
+                showInfoIcon={false}
+                noRounded
+                className="border-0 bg-transparent p-0 flex items-center justify-center shrink-0"
+              >
+                <StatusIcon status={project.status} className="h-6! w-6!" />
+              </StatusBadge>
+            )}
+            <button
+              type="button"
+              onClick={() => setIsEditDialogOpen(true)}
+              className="shrink-0 p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground rounded-md transition-colors"
+              aria-label="Edit project"
+              title="Edit project"
+            >
+              <Pencil className="w-5 h-5" />
+            </button>
+            {project.github_url && (
+              <a
+                href={project.github_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                title="GitHub Repository"
+              >
+                <GithubIcon className="w-6 h-6" />
+              </a>
+            )}
+            {project.submission_url && (
+              <a
+                href={project.submission_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="shrink-0 text-muted-foreground hover:text-[#003E54] transition-colors"
+                title="Devpost Submission"
+              >
+                <DevpostIcon className="w-6 h-6" />
+              </a>
+            )}
 
-            <div className="flex flex-wrap items-center gap-3 shrink-0">
+            <div className="flex items-center gap-3 shrink-0 ml-auto">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-medium text-muted-foreground">
                   Table

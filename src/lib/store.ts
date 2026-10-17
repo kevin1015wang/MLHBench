@@ -46,9 +46,36 @@ interface AppState {
 
   addRecentlyViewedProject: (projectId: string) => void;
   toggleFavoriteProject: (projectId: string) => void;
+  toggleUnconsideredProject: (projectId: string) => void;
   addNotification: (entry: Omit<NotificationEntry, "id" | "timestamp">) => void;
   removeNotification: (id: string) => void;
   clearNotifications: () => void;
+}
+
+// Optimistically flips a per-project boolean in the store, then persists it.
+function toggleProjectFlag(
+  get: () => AppState,
+  set: (fn: (state: AppState) => Partial<AppState>) => void,
+  projectId: string,
+  field: "is_favorite" | "is_unconsidered",
+) {
+  const project = get().projects.find((p) => p.id === projectId);
+  if (!project) return;
+  const value = !project[field];
+  set((state) => ({
+    projects: state.projects.map((p) =>
+      p.id === projectId ? { ...p, [field]: value } : p,
+    ),
+  }));
+  void (async () => {
+    const { createClient } = await import("@/lib/supabase/client");
+    const supabase = createClient();
+    const { error } = await supabase
+      .from("projects")
+      .update({ [field]: value })
+      .eq("id", projectId);
+    if (error) console.error(`Failed to update ${field}:`, error);
+  })();
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -125,25 +152,10 @@ export const useStore = create<AppState>((set, get) => ({
       }
       return { recentlyViewedProjects: updated };
     }),
-  toggleFavoriteProject: (projectId) => {
-    const project = get().projects.find((p) => p.id === projectId);
-    if (!project) return;
-    const isFavorite = !project.is_favorite;
-    set((state) => ({
-      projects: state.projects.map((p) =>
-        p.id === projectId ? { ...p, is_favorite: isFavorite } : p,
-      ),
-    }));
-    void (async () => {
-      const { createClient } = await import("@/lib/supabase/client");
-      const supabase = createClient();
-      const { error } = await supabase
-        .from("projects")
-        .update({ is_favorite: isFavorite })
-        .eq("id", projectId);
-      if (error) console.error("Failed to update favorite:", error);
-    })();
-  },
+  toggleFavoriteProject: (projectId) =>
+    toggleProjectFlag(get, set, projectId, "is_favorite"),
+  toggleUnconsideredProject: (projectId) =>
+    toggleProjectFlag(get, set, projectId, "is_unconsidered"),
   addNotification: ({ message, type }) =>
     set((state) => {
       const entry: NotificationEntry = {

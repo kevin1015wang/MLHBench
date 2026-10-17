@@ -174,7 +174,10 @@ create table projects (
 
   prize_results jsonb not null default '{}'::jsonb,
 
-  is_favorite boolean not null default false
+  is_favorite boolean not null default false,
+  -- Set by a judge to take a project out of the running without deleting
+  -- it; the projects table greys the row out.
+  is_unconsidered boolean not null default false
 );
 
 create index projects_event_id_idx on projects(event_id);

@@ -10,6 +10,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getCommonPinningStyles } from "@/lib/data-table";
+import { cn } from "@/lib/utils";
 
 interface DataTableProps<TData> {
   table: TanstackTable<TData>;
@@ -74,11 +75,11 @@ export function DataTable<TData>({
                       key={row.id}
                       data-state={row.getIsSelected() && "selected"}
                       aria-selected={row.getIsSelected()}
-                      className={
-                        hasError
-                          ? "bg-red-50 dark:bg-red-950/20 hover:bg-red-100 dark:hover:bg-red-950/30"
-                          : (extraClassName ?? "")
-                      }
+                      className={cn(
+                        extraClassName,
+                        hasError &&
+                          "bg-red-50 dark:bg-red-950/20 hover:bg-red-100 dark:hover:bg-red-950/30",
+                      )}
                     >
                       {row.getVisibleCells().map((cell) => {
                         const pinningStyles = getCommonPinningStyles(

@@ -6,6 +6,7 @@ export type JudgingTimerStatus = "idle" | "running" | "paused" | "alarming";
 
 const DEFAULT_DURATION_SECONDS = 120; // The 2-minute limit this was built for
 const ALARM_SOUND_SRC = "/sounds/timersound.mp3";
+const DURATION_STORAGE_KEY = "judgingTimerDuration";
 
 // The single instance of this hook is owned by JudgingTimerProvider (see
 // judging-timer-provider.tsx) and shared via context to every consumer --
@@ -21,6 +22,18 @@ export function useJudgingTimerState() {
 
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Restore the judge's last chosen duration. Read after mount rather than in
+  // the useState initializer so server and client render the same default.
+  useEffect(() => {
+    try {
+      const saved = Number(localStorage.getItem(DURATION_STORAGE_KEY));
+      if (Number.isInteger(saved) && saved > 0) {
+        setDurationState(saved);
+        setRemaining(saved);
+      }
+    } catch {}
+  }, []);
 
   const getAlarmAudio = useCallback(() => {
     if (!audioRef.current) {
@@ -121,6 +134,9 @@ export function useJudgingTimerState() {
   const setDuration = useCallback(
     (seconds: number) => {
       setDurationState(seconds);
+      try {
+        localStorage.setItem(DURATION_STORAGE_KEY, String(seconds));
+      } catch {}
       if (status === "idle") {
         setRemaining(seconds);
       }

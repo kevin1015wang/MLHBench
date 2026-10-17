@@ -4,6 +4,7 @@ import type { Column, ColumnDef } from "@tanstack/react-table";
 import {
   AlertCircle,
   AlertTriangle,
+  Ban,
   ChevronUp,
   Play,
   Star,
@@ -64,6 +65,7 @@ import {
 } from "@/lib/project-utils";
 import type { Project, ProjectProcessingStatus } from "@/lib/store";
 import { useStore } from "@/lib/store";
+import { cn } from "@/lib/utils";
 import { toTitleCase } from "@/lib/utils/string-utils";
 
 // Persists a single project field: updates the local store immediately, then
@@ -258,7 +260,7 @@ export function ProjectTable({
   eventId,
   presenceUsers,
 }: ProjectTableProps) {
-  const { toggleFavoriteProject } = useStore();
+  const { toggleFavoriteProject, toggleUnconsideredProject } = useStore();
   const { user } = useSession();
   const isAdmin = user?.role === "admin";
 
@@ -687,26 +689,43 @@ export function ProjectTable({
         header: () => null,
         cell: ({ row }) => {
           const isFavorite = row.original.is_favorite;
+          const isUnconsidered = row.original.is_unconsidered;
           return (
-            <button
-              type="button"
-              onClick={() => handleToggleFavorite(row.original.id)}
-              className="p-1.5 hover:bg-accent rounded-md transition-all border border-transparent hover:border-border shadow-sm hover:shadow"
-              aria-label={
-                isFavorite ? "Remove from favorites" : "Add to favorites"
-              }
-            >
-              <Star
-                className={`h-4 w-4 ${
-                  isFavorite
-                    ? "fill-yellow-500 text-yellow-500"
-                    : "text-muted-foreground"
-                }`}
-              />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => handleToggleFavorite(row.original.id)}
+                className="p-1.5 hover:bg-accent rounded-md transition-all border border-transparent hover:border-border shadow-sm hover:shadow"
+                aria-label={
+                  isFavorite ? "Remove from favorites" : "Add to favorites"
+                }
+              >
+                <Star
+                  className={`h-4 w-4 ${
+                    isFavorite
+                      ? "fill-yellow-500 text-yellow-500"
+                      : "text-muted-foreground"
+                  }`}
+                />
+              </button>
+              <button
+                type="button"
+                onClick={() => toggleUnconsideredProject(row.original.id)}
+                className="p-1.5 hover:bg-accent rounded-md transition-all border border-transparent hover:border-border shadow-sm hover:shadow"
+                aria-label={isUnconsidered ? "Reconsider" : "Unconsider"}
+                aria-pressed={isUnconsidered}
+                title={isUnconsidered ? "Reconsider" : "Unconsider"}
+              >
+                <Ban
+                  className={`h-4 w-4 ${
+                    isUnconsidered ? "text-red-500" : "text-muted-foreground"
+                  }`}
+                />
+              </button>
+            </div>
           );
         },
-        size: 48,
+        size: 88,
         enableSorting: false,
         enableHiding: false,
       },
@@ -1217,6 +1236,7 @@ export function ProjectTable({
     onProjectClick,
     onRunAnalysis,
     handleToggleFavorite,
+    toggleUnconsideredProject,
     prizeCategoryMap,
     prizeCategoryNameMap,
     duplicateNameInfoById.get,
@@ -1458,9 +1478,13 @@ export function ProjectTable({
           table={table}
           emptyStateMessage={emptyStateMessage}
           getRowClassName={(project) =>
-            viewMode === "judging" && !project.judging_notes?.trim()
-              ? "bg-yellow-50 dark:bg-yellow-950/20 hover:bg-yellow-100 dark:hover:bg-yellow-950/30"
-              : undefined
+            cn(
+              viewMode === "judging" &&
+                !project.judging_notes?.trim() &&
+                "bg-yellow-50 dark:bg-yellow-950/20 hover:bg-yellow-100 dark:hover:bg-yellow-950/30",
+              project.is_unconsidered &&
+                "opacity-50 grayscale hover:opacity-75",
+            ) || undefined
           }
         >
           {/* Overlay background when processing - contained within DataTable */}
