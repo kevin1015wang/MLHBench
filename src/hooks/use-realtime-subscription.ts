@@ -12,6 +12,7 @@ type Event = Tables<"events">;
 type Project = Tables<"projects">;
 type PrizeCategory = Tables<"prize_categories">;
 type ProjectRanking = Tables<"project_rankings">;
+type ProjectJudge = Tables<"project_judges">;
 type IgnoredPrizeSlug = Tables<"ignored_prize_slugs">;
 
 export function useRealtimeSubscription() {
@@ -179,6 +180,31 @@ export function useRealtimeSubscription() {
                 if (eventType === "DELETE")
                   return oldSlugs.filter((s) => s.id !== oldRecord.id);
                 return oldSlugs;
+              },
+            );
+          },
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "project_judges" },
+          (payload: RealtimePostgresChangesPayload<ProjectJudge>) => {
+            queryClient.setQueriesData<ProjectJudge[]>(
+              { queryKey: ["project_judges"] },
+              (oldJudges) => {
+                if (!oldJudges) return oldJudges;
+                const { eventType, new: newRecord, old: oldRecord } = payload;
+
+                if (eventType === "INSERT" || eventType === "UPDATE") {
+                  if (oldJudges.some((j) => j.id === newRecord.id)) {
+                    return oldJudges.map((j) =>
+                      j.id === newRecord.id ? newRecord : j,
+                    );
+                  }
+                  return [...oldJudges, newRecord];
+                }
+                if (eventType === "DELETE")
+                  return oldJudges.filter((j) => j.id !== oldRecord.id);
+                return oldJudges;
               },
             );
           },

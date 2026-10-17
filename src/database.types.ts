@@ -352,6 +352,57 @@ export type Database = {
           },
         ]
       }
+      project_judges: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          judge_avatar_url: string | null
+          judge_id: string
+          judge_name: string
+          judge_role: string
+          last_judged_at: string
+          project_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          judge_avatar_url?: string | null
+          judge_id: string
+          judge_name: string
+          judge_role?: string
+          last_judged_at?: string
+          project_id: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          judge_avatar_url?: string | null
+          judge_id?: string
+          judge_name?: string
+          judge_role?: string
+          last_judged_at?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_judges_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_judges_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_rankings: {
         Row: {
           created_at: string

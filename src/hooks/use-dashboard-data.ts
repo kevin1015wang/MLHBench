@@ -7,6 +7,7 @@ import {
   getEvents,
   getIgnoredPrizeSlugs,
   getPrizeCategories,
+  getProjectJudges,
   getProjectRankings,
   getProjects,
 } from "@/lib/data-service";
@@ -18,6 +19,7 @@ export function useDashboardData(activeEventId: string | null) {
     setProjects,
     setPrizeCategories,
     setProjectRankings,
+    setProjectJudges,
     setIgnoredPrizeSlugs,
   } = useStore();
 
@@ -83,6 +85,21 @@ export function useDashboardData(activeEventId: string | null) {
     refetchOnReconnect: false,
   });
 
+  // 4b. Fetch Project Judges (who judged what, dependent on activeEventId)
+  const {
+    data: projectJudges,
+    isLoading: isLoadingJudges,
+    error: judgesError,
+  } = useQuery({
+    queryKey: ["project_judges", activeEventId],
+    queryFn: () => getProjectJudges(activeEventId || undefined),
+    enabled: true,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+  });
+
   // 5. Fetch Ignored Prize Slugs
   const {
     data: ignoredPrizeSlugs,
@@ -128,6 +145,13 @@ export function useDashboardData(activeEventId: string | null) {
     }
   }, [projectRankings, setProjectRankings]);
 
+  // Sync Project Judges
+  useEffect(() => {
+    if (projectJudges) {
+      setProjectJudges(projectJudges);
+    }
+  }, [projectJudges, setProjectJudges]);
+
   // Sync Ignored Prize Slugs
   useEffect(() => {
     if (ignoredPrizeSlugs) {
@@ -142,6 +166,7 @@ export function useDashboardData(activeEventId: string | null) {
       categoriesError ||
       projectsError ||
       rankingsError ||
+      judgesError ||
       ignoredPrizeSlugsError
     ) {
       console.error(
@@ -150,6 +175,7 @@ export function useDashboardData(activeEventId: string | null) {
           categoriesError ||
           projectsError ||
           rankingsError ||
+          judgesError ||
           ignoredPrizeSlugsError,
       );
       toast.error("Failed to load dashboard data");
@@ -159,6 +185,7 @@ export function useDashboardData(activeEventId: string | null) {
     categoriesError,
     projectsError,
     rankingsError,
+    judgesError,
     ignoredPrizeSlugsError,
   ]);
 
@@ -167,6 +194,7 @@ export function useDashboardData(activeEventId: string | null) {
     isLoadingCategories ||
     isLoadingProjects ||
     isLoadingRankings ||
+    isLoadingJudges ||
     isLoadingIgnoredPrizeSlugs;
 
   return {

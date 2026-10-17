@@ -19,8 +19,16 @@ function getInitials(name: string) {
   return (first + last).toUpperCase() || "?";
 }
 
+// The subset of PresenceUser the stack actually renders, so non-presence
+// lists (e.g. who judged a project) can reuse it. `detail` is an optional
+// second tooltip line.
+type AvatarUser = Pick<PresenceUser, "userId" | "name" | "avatarUrl"> & {
+  readonly role?: PresenceUser["role"] | string;
+  readonly detail?: string;
+};
+
 interface PresenceAvatarsProps {
-  readonly users: PresenceUser[];
+  readonly users: AvatarUser[];
   readonly size?: "sm" | "md";
 }
 
@@ -61,6 +69,9 @@ export function PresenceAvatars({ users, size = "md" }: PresenceAvatarsProps) {
                 {presenceUser.name}
                 {presenceUser.role === "guest" ? " (Guest)" : ""}
               </p>
+              {presenceUser.detail && (
+                <p className="text-muted-foreground">{presenceUser.detail}</p>
+              )}
             </TooltipContent>
           </Tooltip>
         ))}

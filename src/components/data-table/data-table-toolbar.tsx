@@ -13,6 +13,10 @@ import {
   X,
 } from "lucide-react";
 import * as React from "react";
+import {
+  matchesJudgedByFilter,
+  UNJUDGED_FILTER_VALUE,
+} from "@/components/projects/project-judges";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -32,6 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { ProjectJudge } from "@/lib/store";
 
 export type ViewMode = "default" | "judging" | "review";
 
@@ -112,8 +117,13 @@ interface DataTableToolbarProps<TData> {
   onHasGithubChange?: (hasGithub: boolean) => void;
   showMlhPrizesOnly?: boolean;
   onShowMlhPrizesOnlyChange?: (show: boolean) => void;
+  judgedBy?: string;
+  onJudgedByChange?: (judgedBy: string | null) => void;
+  judgeOptions?: Array<{ id: string; name: string }>;
+  judgesByProjectId?: Map<string, ProjectJudge[]>;
   // For calculating filter counts
   allProjects?: Array<{
+    id: string;
     status: string;
     project_title?: string | null;
     technical_complexity?: string | null;
@@ -154,6 +164,10 @@ export function DataTableToolbar<TData>({
   onHasGithubChange,
   showMlhPrizesOnly = true,
   onShowMlhPrizesOnlyChange,
+  judgedBy,
+  onJudgedByChange,
+  judgeOptions = [],
+  judgesByProjectId,
   allProjects = [],
   title = "",
 }: DataTableToolbarProps<TData>) {
@@ -169,6 +183,7 @@ export function DataTableToolbar<TData>({
     prizeTracks.length > 0 ||
     techStack.length > 0 ||
     hasGithub === true ||
+    !!judgedBy ||
     // showMlhPrizesOnly === true ||  // Do not show reset button when showMlhPrizesOnly is true
     false;
   const [globalFilter, setGlobalFilter] = React.useState("");
@@ -182,6 +197,7 @@ export function DataTableToolbar<TData>({
     (prizeTracks.length > 0 ? 1 : 0) +
     (techStack.length > 0 ? 1 : 0) +
     (hasGithub === true ? 1 : 0) +
+    (judgedBy ? 1 : 0) +
     (showMlhPrizesOnly ? 1 : 0);
 
   React.useEffect(() => {
@@ -201,6 +217,7 @@ export function DataTableToolbar<TData>({
     onPrizeTracksChange?.(null);
     onTechStackChange?.(null);
     onHasGithubChange?.(false);
+    onJudgedByChange?.(null);
     onShowMlhPrizesOnlyChange?.(true);
   };
 
@@ -261,6 +278,7 @@ export function DataTableToolbar<TData>({
         | "prizeTrack"
         | "techStack"
         | "github"
+        | "judgedBy"
         | "mlhPrize",
       filterValue: string,
     ) => {
@@ -322,6 +340,11 @@ export function DataTableToolbar<TData>({
               : !hasGithubUrl
             : !hasGithub || hasGithubUrl;
 
+        const matchesJudgedBy = matchesJudgedByFilter(
+          filterType === "judgedBy" ? filterValue : judgedBy,
+          judgesByProjectId?.get(project.id),
+        );
+
         // For MLH Prize: check if project has any standardized opt-in prizes
         const hasMlhPrizes =
           (project.standardized_opt_in_prizes?.length ?? 0) > 0;
@@ -339,6 +362,7 @@ export function DataTableToolbar<TData>({
           matchesPrizeTrack &&
           matchesTechStack &&
           matchesGithub &&
+          matchesJudgedBy &&
           matchesMlhPrize
         );
       }).length;
@@ -352,6 +376,8 @@ export function DataTableToolbar<TData>({
       techStack,
       techStackMode,
       hasGithub,
+      judgedBy,
+      judgesByProjectId,
       showMlhPrizesOnly,
       getProjectPrizeTracks,
     ],
@@ -593,6 +619,47 @@ export function DataTableToolbar<TData>({
                       <SelectItem key={option.value} value={option.value}>
                         <span className="flex items-center justify-between w-full">
                           <span>{option.label}</span>
+                          <Badge
+                            variant="secondary"
+                            className="ml-2 h-4 min-w-4 px-1 text-[10px] font-normal"
+                          >
+                            {count}
+                          </Badge>
+                        </span>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <DropdownMenuSeparator />
+
+            {/* Judged By Filter */}
+            <DropdownMenuLabel className="text-xs font-normal">
+              Judged By
+            </DropdownMenuLabel>
+            <div className="px-2 py-1.5">
+              <Select
+                value={judgedBy || "all"}
+                onValueChange={(value) => {
+                  onJudgedByChange?.(value === "all" ? null : value);
+                }}
+              >
+                <SelectTrigger className="h-8 w-full">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  {[
+                    { id: UNJUDGED_FILTER_VALUE, name: "Not judged yet" },
+                    ...judgeOptions,
+                  ].map((option) => {
+                    const count = getFilterCounts("judgedBy", option.id);
+                    return (
+                      <SelectItem key={option.id} value={option.id}>
+                        <span className="flex items-center justify-between w-full">
+                          <span>{option.name}</span>
                           <Badge
                             variant="secondary"
                             className="ml-2 h-4 min-w-4 px-1 text-[10px] font-normal"

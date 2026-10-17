@@ -11,6 +11,8 @@ export interface FilterState {
   techStack?: string[];
   techStackMode?: "intersection" | "union";
   hasGithub?: boolean;
+  // A judge_id, or UNJUDGED_FILTER_VALUE for projects nobody has judged.
+  judgedBy?: string;
   showMlhPrizesOnly?: boolean;
   viewMode?: "default" | "judging" | "review";
   // No longer written -- visibility follows the view mode. Kept so older

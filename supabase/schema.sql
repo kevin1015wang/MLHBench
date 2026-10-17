@@ -249,6 +249,29 @@ create table project_rankings (
 create index project_rankings_category_idx on project_rankings(prize_category_id, rank);
 create index project_rankings_event_idx on project_rankings(event_id);
 
+-- Who judged what: one row per (project, judge), upserted whenever a judge
+-- saves a score or notes, or favorites/unconsiders the project. A separate
+-- table (rather than an array column on projects) so two coaches judging the
+-- same project at once can't clobber each other's entry. judge_id is the
+-- session user id (admin Google id or guest id), not a FK, since admins
+-- aren't stored in a table; name/avatar are snapshotted for display.
+create table project_judges (
+  id uuid primary key default gen_random_uuid(),
+  event_id uuid not null references events(id) on delete cascade,
+  project_id uuid not null references projects(id) on delete cascade,
+  judge_id text not null,
+  judge_name text not null,
+  judge_avatar_url text,
+  judge_role text not null default 'admin',
+
+  created_at timestamptz not null default now(),
+  last_judged_at timestamptz not null default now(),
+
+  constraint project_judges_project_judge_unique unique (project_id, judge_id)
+);
+
+create index project_judges_event_idx on project_judges(event_id);
+
 -- Anon/publishable key is used for almost all reads and writes (no
 -- service-role key for these tables), so RLS must permit the anon role to
 -- select/insert/update/delete on them. See README "Notes & tips".
@@ -256,12 +279,14 @@ alter table events enable row level security;
 alter table projects enable row level security;
 alter table prize_categories enable row level security;
 alter table project_rankings enable row level security;
+alter table project_judges enable row level security;
 alter table ignored_prize_slugs enable row level security;
 
 create policy "anon full access" on events for all to anon using (true) with check (true);
 create policy "anon full access" on projects for all to anon using (true) with check (true);
 create policy "anon full access" on prize_categories for all to anon using (true) with check (true);
 create policy "anon full access" on project_rankings for all to anon using (true) with check (true);
+create policy "anon full access" on project_judges for all to anon using (true) with check (true);
 create policy "anon full access" on ignored_prize_slugs for all to anon using (true) with check (true);
 
 -- guests/guest_event_access are the one exception: they gate authentication
@@ -283,4 +308,5 @@ alter publication supabase_realtime add table events;
 alter publication supabase_realtime add table projects;
 alter publication supabase_realtime add table prize_categories;
 alter publication supabase_realtime add table project_rankings;
+alter publication supabase_realtime add table project_judges;
 alter publication supabase_realtime add table ignored_prize_slugs;

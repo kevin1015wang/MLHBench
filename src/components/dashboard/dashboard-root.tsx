@@ -67,8 +67,14 @@ function DashboardContent({ children }: DashboardRootProps) {
     setProcessingProjects,
     setShowProcessingModal,
     addNotification,
+    setCurrentUser,
   } = useStore();
   const { user } = useSession();
+
+  // recordProjectJudge (store) needs to know who is judging.
+  useEffect(() => {
+    setCurrentUser(user);
+  }, [user, setCurrentUser]);
 
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);

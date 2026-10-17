@@ -27,6 +27,10 @@ import { GithubIcon } from "@/components/icons/github-icon";
 import { PresenceAvatars } from "@/components/navigation/presence-avatars";
 import { EditProjectDialog } from "@/components/projects/edit-project-dialog";
 import { JudgingTimerCard } from "@/components/projects/judging-timer-card";
+import {
+  groupJudgesByProject,
+  ProjectJudgeAvatars,
+} from "@/components/projects/project-judges";
 import { SaveStatusIndicator } from "@/components/save-status-indicator";
 import { StatusBadge } from "@/components/status/status-badge";
 import { StatusIcon } from "@/components/status/status-icon";
@@ -68,6 +72,13 @@ import {
 import { type Project, useStore } from "@/lib/store";
 import { buildCopilotChatPrompt } from "@/prompts/copilot-chat";
 
+// Fields whose edits count as "judging" the project for who-judged-what.
+// Table number is logistics, not judging, so it's left out.
+const JUDGING_FIELDS = new Set<keyof Project>([
+  "judging_rating",
+  "judging_notes",
+]);
+
 // Persists a single project field: updates the local store immediately, then
 // writes to the database. Used by the auto-save hook for each judging field.
 function saveProjectField<K extends keyof Project>(
@@ -84,6 +95,9 @@ function saveProjectField<K extends keyof Project>(
       .update({ [field]: value })
       .eq("id", projectId);
     if (error) throw error;
+    if (JUDGING_FIELDS.has(field)) {
+      useStore.getState().recordProjectJudge(projectId);
+    }
   };
 }
 
@@ -241,8 +255,12 @@ export function ProjectDetailPane({
     prizeCategoryNameMap,
     prizeCategories,
   } = usePrizeCategories();
-  const { toggleFavoriteProject, toggleUnconsideredProject, updateProject } =
-    useStore();
+  const {
+    toggleFavoriteProject,
+    toggleUnconsideredProject,
+    updateProject,
+    projectJudges,
+  } = useStore();
   const { user } = useSession();
   const [isTitleExpanded, setIsTitleExpanded] = React.useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false);
@@ -253,6 +271,10 @@ export function ProjectDetailPane({
   }, [project?.id]);
 
   if (!project) return null;
+
+  const judges = groupJudgesByProject(
+    projectJudges.filter((j) => j.project_id === project.id),
+  ).get(project.id);
 
   const otherViewers = (presenceUsers ?? []).filter(
     (p) => p.projectId === project.id && p.userId !== user?.id,
@@ -441,6 +463,15 @@ export function ProjectDetailPane({
               </Button>
             </div>
           </div>
+
+          {judges && judges.length > 0 && (
+            <div className="flex items-center gap-2 mt-3 min-w-0">
+              <ProjectJudgeAvatars judges={judges} />
+              <span className="text-sm text-muted-foreground truncate">
+                Judged by {judges.map((j) => j.judge_name).join(", ")}
+              </span>
+            </div>
+          )}
 
           {otherViewers.length > 0 && (
             <div className="flex items-center gap-2 mt-3">

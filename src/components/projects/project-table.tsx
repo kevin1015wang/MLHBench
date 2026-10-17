@@ -27,6 +27,11 @@ import { DevpostIcon } from "@/components/icons/devpost-icon";
 import { GithubIcon } from "@/components/icons/github-icon";
 import { PresenceAvatars } from "@/components/navigation/presence-avatars";
 import { ProcessingModal } from "@/components/processing-modal";
+import {
+  groupJudgesByProject,
+  matchesJudgedByFilter,
+  ProjectJudgeAvatars,
+} from "@/components/projects/project-judges";
 import { ReviewView } from "@/components/projects/review-view";
 import { SaveStatusIndicator } from "@/components/save-status-indicator";
 import {
@@ -68,6 +73,13 @@ import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { toTitleCase } from "@/lib/utils/string-utils";
 
+// Fields whose edits count as "judging" the project for who-judged-what.
+// Table number is logistics, not judging, so it's left out.
+const JUDGING_FIELDS = new Set<keyof Project>([
+  "judging_rating",
+  "judging_notes",
+]);
+
 // Persists a single project field: updates the local store immediately, then
 // writes to the database. Used by the auto-save hook for each judging field.
 function saveProjectField<K extends keyof Project>(
@@ -84,6 +96,9 @@ function saveProjectField<K extends keyof Project>(
       .update({ [field]: value })
       .eq("id", projectId);
     if (error) throw error;
+    if (JUDGING_FIELDS.has(field)) {
+      useStore.getState().recordProjectJudge(projectId);
+    }
   };
 }
 
@@ -260,7 +275,8 @@ export function ProjectTable({
   eventId,
   presenceUsers,
 }: ProjectTableProps) {
-  const { toggleFavoriteProject, toggleUnconsideredProject } = useStore();
+  const { toggleFavoriteProject, toggleUnconsideredProject, projectJudges } =
+    useStore();
   const { user } = useSession();
   const isAdmin = user?.role === "admin";
 
@@ -308,6 +324,7 @@ export function ProjectTable({
     ),
   );
   const [hasGithub, setHasGithub] = useQueryState("hasGithub", parseAsBoolean);
+  const [judgedBy, setJudgedBy] = useQueryState("judgedBy", parseAsString);
 
   const [showMlhPrizesOnly, setShowMlhPrizesOnly] = React.useState(
     persistedState.showMlhPrizesOnly ?? true,
@@ -400,6 +417,30 @@ export function ProjectTable({
     return map;
   }, [presenceUsers, user?.id]);
 
+  const judgesByProjectId = React.useMemo(
+    () => groupJudgesByProject(projectJudges),
+    [projectJudges],
+  );
+
+  // Everyone who has judged a project in this event, for the Judged By
+  // filter. The current user is listed first.
+  const judgeOptions = React.useMemo(() => {
+    const byId = new Map<string, string>();
+    for (const judge of projectJudges) {
+      byId.set(judge.judge_id, judge.judge_name);
+    }
+    return Array.from(byId, ([id, name]) => ({
+      id,
+      name: id === user?.id ? `${name} (you)` : name,
+    })).sort((a, b) =>
+      a.id === user?.id
+        ? -1
+        : b.id === user?.id
+          ? 1
+          : a.name.localeCompare(b.name),
+    );
+  }, [projectJudges, user?.id]);
+
   // Check if URL has filter params - reactive to actual query state values
   const hasUrlParams = React.useMemo(() => {
     return !!(
@@ -408,9 +449,10 @@ export function ProjectTable({
       (complexity && complexity.length > 0) ||
       (prizeTracks && prizeTracks.length > 0) ||
       (techStack && techStack.length > 0) ||
-      hasGithub === true
+      hasGithub === true ||
+      !!judgedBy
     );
-  }, [title, status, complexity, prizeTracks, techStack, hasGithub]);
+  }, [title, status, complexity, prizeTracks, techStack, hasGithub, judgedBy]);
 
   // Track the last eventId we restored for and if we're currently restoring
   const lastRestoredEventIdRef = React.useRef<string | null | undefined>(null);
@@ -450,6 +492,9 @@ export function ProjectTable({
       }
       if (persistedState.hasGithub !== undefined) {
         setHasGithub(persistedState.hasGithub);
+      }
+      if (persistedState.judgedBy) {
+        setJudgedBy(persistedState.judgedBy);
       }
       if (persistedState.showMlhPrizesOnly !== undefined) {
         setShowMlhPrizesOnly(persistedState.showMlhPrizesOnly);
@@ -497,6 +542,7 @@ export function ProjectTable({
     setTechStack,
     setTechStackMode,
     setHasGithub,
+    setJudgedBy,
   ]);
   const { prizeCategoryMap, prizeCategoryNameMap, prizeCategories } =
     usePrizeCategories();
@@ -619,6 +665,11 @@ export function ProjectTable({
       // GitHub filter
       const matchesGithub = !hasGithub || !!project.github_url;
 
+      const matchesJudgedBy = matchesJudgedByFilter(
+        judgedBy,
+        judgesByProjectId.get(project.id),
+      );
+
       // MLH Prize filter - if enabled, only show projects that have at least one MLH prize
       const matchesMlhPrize =
         !showMlhPrizesOnly || getPrizeTracks(project).length > 0;
@@ -630,6 +681,7 @@ export function ProjectTable({
         matchesPrizeTrack &&
         matchesTechStack &&
         matchesGithub &&
+        matchesJudgedBy &&
         matchesMlhPrize
       );
     });
@@ -643,6 +695,8 @@ export function ProjectTable({
     techStack,
     techStackMode,
     hasGithub,
+    judgedBy,
+    judgesByProjectId,
     showMlhPrizesOnly,
   ]);
 
@@ -940,6 +994,22 @@ export function ProjectTable({
         },
         enableColumnFilter: true,
         size: 200,
+      },
+      {
+        id: "judged_by",
+        header: "Judged By",
+        cell: ({ row }) => {
+          const judges = judgesByProjectId.get(row.original.id);
+          if (!judges?.length) {
+            return <span className="text-xs text-muted-foreground">—</span>;
+          }
+          return <ProjectJudgeAvatars judges={judges} />;
+        },
+        meta: {
+          label: "Judged By",
+        },
+        size: 110,
+        enableSorting: false,
       },
       {
         id: "links",
@@ -1241,11 +1311,12 @@ export function ProjectTable({
     prizeCategoryNameMap,
     duplicateNameInfoById.get,
     viewersByProjectId.get,
+    judgesByProjectId,
   ]);
 
   // Column visibility is driven entirely by the view mode.
   // Judging view is a fixed preset: Favorite, Table, Status, Project, Links,
-  // MLH Prize Tracks, and Notes only. Everything else (select, score,
+  // Judged By, MLH Prize Tracks, and Notes only. Everything else (select, score,
   // complexity/accuracy, actions) is only shown in the regular table view.
   const initialColumnVisibility = React.useMemo(() => {
     const isJudgingView = viewMode === "judging";
@@ -1257,6 +1328,7 @@ export function ProjectTable({
       status: true,
       project_title: true,
       links: true,
+      judged_by: true,
       technical_complexity: !isJudgingView,
       description_accuracy: !isJudgingView,
       prize_tracks: true,
@@ -1297,6 +1369,7 @@ export function ProjectTable({
     table.getColumn("status")?.toggleVisibility(true);
     table.getColumn("project_title")?.toggleVisibility(true);
     table.getColumn("links")?.toggleVisibility(true);
+    table.getColumn("judged_by")?.toggleVisibility(true);
     table.getColumn("technical_complexity")?.toggleVisibility(!isJudgingView);
     table.getColumn("description_accuracy")?.toggleVisibility(!isJudgingView);
     table.getColumn("prize_tracks")?.toggleVisibility(true);
@@ -1346,6 +1419,7 @@ export function ProjectTable({
       techStack: techStack && techStack.length > 0 ? techStack : undefined,
       techStackMode,
       hasGithub: hasGithub ?? undefined,
+      judgedBy: judgedBy || undefined,
       showMlhPrizesOnly,
       viewMode,
       sorting,
@@ -1361,6 +1435,7 @@ export function ProjectTable({
     techStack,
     techStackMode,
     hasGithub,
+    judgedBy,
     showMlhPrizesOnly,
     viewMode,
     sorting,
@@ -1461,6 +1536,10 @@ export function ProjectTable({
           }}
           showMlhPrizesOnly={showMlhPrizesOnly}
           onShowMlhPrizesOnlyChange={setShowMlhPrizesOnly}
+          judgedBy={judgedBy ?? undefined}
+          onJudgedByChange={setJudgedBy}
+          judgeOptions={judgeOptions}
+          judgesByProjectId={judgesByProjectId}
           allProjects={projects}
           title={title || ""}
         />

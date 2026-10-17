@@ -1,11 +1,13 @@
 import { create } from "zustand";
 import type { Enums, Tables } from "@/database.types";
+import type { SessionUser } from "@/lib/auth/session";
 
 // Type aliases for cleaner code
 type Event = Tables<"events">;
 type Project = Tables<"projects">;
 type PrizeCategory = Tables<"prize_categories">;
 type ProjectRanking = Tables<"project_rankings">;
+type ProjectJudge = Tables<"project_judges">;
 type IgnoredPrizeSlug = Tables<"ignored_prize_slugs">;
 type ProjectProcessingStatus = Enums<"project_processing_status">;
 type ComplexityRating = Enums<"complexity_rating">;
@@ -23,7 +25,9 @@ interface AppState {
   projects: Project[];
   prizeCategories: PrizeCategory[];
   projectRankings: ProjectRanking[];
+  projectJudges: ProjectJudge[];
   ignoredPrizeSlugs: IgnoredPrizeSlug[];
+  currentUser: SessionUser | null;
   selectedEventId: string | null;
   isProcessing: boolean;
   processingProjects: string[];
@@ -36,6 +40,9 @@ interface AppState {
   setProjects: (projects: Project[]) => void;
   setPrizeCategories: (categories: PrizeCategory[]) => void;
   setProjectRankings: (rankings: ProjectRanking[]) => void;
+  setProjectJudges: (judges: ProjectJudge[]) => void;
+  setCurrentUser: (user: SessionUser | null) => void;
+  recordProjectJudge: (projectId: string) => void;
   setIgnoredPrizeSlugs: (slugs: IgnoredPrizeSlug[]) => void;
   setSelectedEventId: (id: string | null) => void;
   updateProject: (id: string, updates: Partial<Project>) => void;
@@ -51,6 +58,8 @@ interface AppState {
   removeNotification: (id: string) => void;
   clearNotifications: () => void;
 }
+
+const RECORD_JUDGE_THROTTLE_MS = 60_000;
 
 // Optimistically flips a per-project boolean in the store, then persists it.
 function toggleProjectFlag(
@@ -83,7 +92,9 @@ export const useStore = create<AppState>((set, get) => ({
   projects: [],
   prizeCategories: [],
   projectRankings: [],
+  projectJudges: [],
   ignoredPrizeSlugs: [],
+  currentUser: null,
   selectedEventId: null,
   isProcessing: false,
   processingProjects: [],
@@ -116,6 +127,69 @@ export const useStore = create<AppState>((set, get) => ({
   setProjects: (projects) => set({ projects }),
   setPrizeCategories: (prizeCategories) => set({ prizeCategories }),
   setProjectRankings: (projectRankings) => set({ projectRankings }),
+  setProjectJudges: (projectJudges) => set({ projectJudges }),
+  setCurrentUser: (currentUser) => set({ currentUser }),
+  recordProjectJudge: (projectId) => {
+    const { currentUser, projects, projectJudges } = get();
+    const project = projects.find((p) => p.id === projectId);
+    if (!currentUser || !project) return;
+
+    // Notes auto-save on every pause in typing, so don't re-upsert the same
+    // judge on the same project more than once a minute.
+    const existing = projectJudges.find(
+      (j) => j.project_id === projectId && j.judge_id === currentUser.id,
+    );
+    if (
+      existing &&
+      Date.now() - new Date(existing.last_judged_at).getTime() <
+        RECORD_JUDGE_THROTTLE_MS
+    ) {
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const row = {
+      event_id: project.event_id,
+      project_id: projectId,
+      judge_id: currentUser.id,
+      judge_name:
+        `${currentUser.firstName} ${currentUser.lastName}`.trim() ||
+        currentUser.email ||
+        "Unknown judge",
+      judge_avatar_url: currentUser.avatarUrl ?? null,
+      judge_role: currentUser.role,
+      last_judged_at: now,
+    };
+    set((state) => ({
+      projectJudges: existing
+        ? state.projectJudges.map((j) =>
+            j.id === existing.id ? { ...j, ...row } : j,
+          )
+        : [
+            ...state.projectJudges,
+            { ...row, id: `${projectId}-${currentUser.id}`, created_at: now },
+          ],
+    }));
+    void (async () => {
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      const { error } = await supabase
+        .from("project_judges")
+        .upsert(row, { onConflict: "project_id,judge_id" });
+      if (!error) return;
+      console.error("Failed to record project judge:", error);
+      // Undo the optimistic entry so the UI doesn't show a judge that will
+      // vanish on refresh (and so the next save retries, unthrottled).
+      const optimisticId = `${projectId}-${currentUser.id}`;
+      set((state) => ({
+        projectJudges: existing
+          ? state.projectJudges.map((j) =>
+              j.id === existing.id ? existing : j,
+            )
+          : state.projectJudges.filter((j) => j.id !== optimisticId),
+      }));
+    })();
+  },
   setIgnoredPrizeSlugs: (ignoredPrizeSlugs) => set({ ignoredPrizeSlugs }),
   setSelectedEventId: (id) => set({ selectedEventId: id }),
   updateProject: (id, updates) =>
@@ -152,10 +226,14 @@ export const useStore = create<AppState>((set, get) => ({
       }
       return { recentlyViewedProjects: updated };
     }),
-  toggleFavoriteProject: (projectId) =>
-    toggleProjectFlag(get, set, projectId, "is_favorite"),
-  toggleUnconsideredProject: (projectId) =>
-    toggleProjectFlag(get, set, projectId, "is_unconsidered"),
+  toggleFavoriteProject: (projectId) => {
+    toggleProjectFlag(get, set, projectId, "is_favorite");
+    get().recordProjectJudge(projectId);
+  },
+  toggleUnconsideredProject: (projectId) => {
+    toggleProjectFlag(get, set, projectId, "is_unconsidered");
+    get().recordProjectJudge(projectId);
+  },
   addNotification: ({ message, type }) =>
     set((state) => {
       const entry: NotificationEntry = {
@@ -197,5 +275,6 @@ export type {
   NotificationType,
   PrizeCategory,
   ProjectRanking,
+  ProjectJudge,
   IgnoredPrizeSlug,
 };

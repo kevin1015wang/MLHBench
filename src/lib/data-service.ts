@@ -6,6 +6,7 @@ type Event = Tables<"events">;
 type Project = Tables<"projects">;
 type PrizeCategory = Tables<"prize_categories">;
 type ProjectRanking = Tables<"project_rankings">;
+type ProjectJudge = Tables<"project_judges">;
 type IgnoredPrizeSlug = Tables<"ignored_prize_slugs">;
 
 export async function getEvents(): Promise<Event[]> {
@@ -81,6 +82,30 @@ export async function getProjectRankings(
     return data || [];
   } catch (error) {
     console.error("[DataService] Failed to fetch project rankings:", error);
+    return [];
+  }
+}
+
+export async function getProjectJudges(
+  eventId?: string,
+): Promise<ProjectJudge[]> {
+  const supabase = createClient();
+
+  try {
+    let query = supabase.from("project_judges").select("*");
+
+    if (eventId) {
+      query = query.eq("event_id", eventId);
+    }
+
+    const { data, error } = await query.order("created_at", {
+      ascending: true,
+    });
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error("[DataService] Failed to fetch project judges:", error);
     return [];
   }
 }
