@@ -437,7 +437,7 @@ export function DataTableToolbar<TData>({
                     placeholder="Search prize tracks..."
                     value={prizeTrackSearch}
                     onChange={(e) => setPrizeTrackSearch(e.target.value)}
-                    className="h-8 pl-7 text-xs"
+                    className="h-8 pl-7 text-base md:text-xs"
                     onClick={(e) => e.stopPropagation()}
                     onKeyDown={(e) => e.stopPropagation()}
                   />
@@ -684,7 +684,7 @@ export function DataTableToolbar<TData>({
                   placeholder="Search tech stack..."
                   value={techStackSearch}
                   onChange={(e) => setTechStackSearch(e.target.value)}
-                  className="h-8 pl-7 text-xs"
+                  className="h-8 pl-7 text-base md:text-xs"
                   onClick={(e) => e.stopPropagation()}
                   onKeyDown={(e) => e.stopPropagation()}
                 />

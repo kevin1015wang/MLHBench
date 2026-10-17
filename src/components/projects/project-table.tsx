@@ -115,7 +115,7 @@ function JudgingScoreCell({ project }: { readonly project: Project }) {
                 );
           handleChange(numValue);
         }}
-        className="h-8 w-16 text-sm"
+        className="h-8 w-16 text-base md:text-sm"
         placeholder="—"
         min={0}
         max={10}
@@ -148,7 +148,7 @@ function NotesCell({ project }: { readonly project: Project }) {
       <Textarea
         value={localValue}
         onChange={(e) => handleChange(e.target.value)}
-        className="w-full min-h-8 max-h-32 text-sm resize-none"
+        className="w-full min-h-8 max-h-32 text-base md:text-sm resize-none"
         placeholder="Add notes..."
         rows={1}
         style={{
@@ -189,7 +189,7 @@ function TableNumberCell({ project }: { readonly project: Project }) {
       <Input
         value={localValue}
         onChange={(e) => handleChange(e.target.value)}
-        className="h-8 w-16 text-sm"
+        className="h-8 w-16 text-base md:text-sm"
         placeholder="—"
       />
       <SaveStatusIndicator

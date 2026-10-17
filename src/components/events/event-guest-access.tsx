@@ -131,7 +131,7 @@ export function EventGuestAccess({ eventId }: EventGuestAccessProps) {
             onFocus={() => setIsSearchFocused(true)}
             onBlur={() => setTimeout(() => setIsSearchFocused(false), 150)}
             placeholder="Search guests to add..."
-            className="h-8 pl-8 text-sm"
+            className="h-8 pl-8 text-base md:text-sm"
           />
           {showDropdown && (
             <div className="absolute z-10 mt-1 w-full border rounded-md bg-popover shadow-md max-h-48 overflow-y-auto divide-y">

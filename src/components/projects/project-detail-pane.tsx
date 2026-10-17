@@ -143,7 +143,7 @@ function NotesInput({ project }: { readonly project: Project }) {
       <Textarea
         value={localValue}
         onChange={(e) => handleChange(e.target.value)}
-        className="w-full text-sm min-h-40"
+        className="w-full text-base md:text-sm min-h-40"
         placeholder="Notes from the pitch..."
       />
       <div className="flex justify-end">
@@ -170,7 +170,7 @@ function TableNumberInput({ project }: { readonly project: Project }) {
       <Input
         value={localValue}
         onChange={(e) => handleChange(e.target.value)}
-        className="h-8 w-24 text-sm"
+        className="h-8 w-24 text-base md:text-sm"
         placeholder="Table #"
       />
       <SaveStatusIndicator status={status} onSave={flush} />
