@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   Ban,
   CheckCircle2,
+  ChevronDown,
   Code2,
   ExternalLink,
   Gavel,
@@ -51,12 +52,6 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { useAutoSaveField } from "@/hooks/use-auto-save-field";
 import type { PresenceUser } from "@/hooks/use-event-presence";
 import { usePrizeCategories } from "@/hooks/use-prize-categories";
@@ -241,6 +236,63 @@ interface ProjectDetailPaneProps {
   readonly onOpenChange: (open: boolean) => void;
   readonly onRerun: () => void;
   readonly presenceUsers?: PresenceUser[];
+}
+
+// A stat card whose AI message is clamped to two lines and expands in place
+// when tapped (a hover tooltip doesn't work on touch screens). Callers key it
+// by project id so it starts collapsed for each project.
+function ExpandableStatCard({
+  icon,
+  label,
+  value,
+  message,
+  fallback,
+}: {
+  readonly icon: React.ReactNode;
+  readonly label: string;
+  readonly value: string | null;
+  readonly message: string | null;
+  readonly fallback: string;
+}) {
+  const [isExpanded, setIsExpanded] = React.useState(false);
+
+  return (
+    <button
+      type="button"
+      onClick={() => setIsExpanded((prev) => !prev)}
+      disabled={!message}
+      aria-expanded={isExpanded}
+      className="self-start w-full text-left bg-card border border-border rounded-xl p-5 shadow-sm space-y-3 transition-colors enabled:hover:border-primary/40 enabled:cursor-pointer"
+    >
+      <div className="flex items-center gap-2 text-muted-foreground">
+        {icon}
+        <span className="text-sm font-medium">{label}</span>
+        {message && (
+          <ChevronDown
+            className={`ml-auto w-4 h-4 transition-transform ${
+              isExpanded ? "rotate-180" : ""
+            }`}
+          />
+        )}
+      </div>
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-2xl font-bold text-foreground capitalize">
+            {value || "N/A"}
+          </span>
+        </div>
+        {message ? (
+          <Markdown
+            className={`text-muted-foreground ${isExpanded ? "" : "line-clamp-2"}`}
+          >
+            {message}
+          </Markdown>
+        ) : (
+          <p className="text-sm text-muted-foreground">{fallback}</p>
+        )}
+      </div>
+    </button>
+  );
 }
 
 export function ProjectDetailPane({
@@ -513,60 +565,22 @@ export function ProjectDetailPane({
 
             {/* Bento Box Stats */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Technical Complexity */}
-              <div className="bg-card border border-border rounded-xl p-5 shadow-sm space-y-3">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <LayoutTemplate className="w-5 h-5" />
-                  <span className="text-sm font-medium">
-                    Technical Complexity
-                  </span>
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-2xl font-bold text-foreground capitalize">
-                      {project.technical_complexity || "N/A"}
-                    </span>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Based on tech stack and feature analysis
-                  </p>
-                </div>
-              </div>
-
-              {/* Description Accuracy */}
-              <div className="bg-card border border-border rounded-xl p-5 shadow-sm space-y-3">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Info className="w-5 h-5" />
-                  <span className="text-sm font-medium">
-                    Description Accuracy
-                  </span>
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-2xl font-bold text-foreground capitalize">
-                      {project.description_accuracy_level || "N/A"}
-                    </span>
-                  </div>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <div className="cursor-help">
-                          <Markdown className="text-muted-foreground line-clamp-2">
-                            {project.description_accuracy_message ||
-                              "No details available"}
-                          </Markdown>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent side="bottom" className="max-w-md">
-                        <Markdown className="text-foreground">
-                          {project.description_accuracy_message ||
-                            "No details available"}
-                        </Markdown>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </div>
-              </div>
+              <ExpandableStatCard
+                key={`complexity-${project.id}`}
+                icon={<LayoutTemplate className="w-5 h-5" />}
+                label="Technical Complexity"
+                value={project.technical_complexity}
+                message={project.technical_complexity_message}
+                fallback="Based on tech stack and feature analysis"
+              />
+              <ExpandableStatCard
+                key={`accuracy-${project.id}`}
+                icon={<Info className="w-5 h-5" />}
+                label="Description Accuracy"
+                value={project.description_accuracy_level}
+                message={project.description_accuracy_message}
+                fallback="No details available"
+              />
             </div>
 
             {/* Code Review Agent Section */}
