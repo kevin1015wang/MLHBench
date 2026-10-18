@@ -27,7 +27,7 @@ export function AppShell({
         presenceUsers={presenceUsers}
       />
 
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto overflow-x-hidden">
         <div className="container mx-auto p-4 sm:p-6">{children}</div>
       </main>
     </div>

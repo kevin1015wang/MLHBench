@@ -175,10 +175,10 @@ export function ProjectsView({
 
   return (
     <div className="relative flex flex-col gap-6">
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           {activeEvent && (
-            <div className="relative w-12 h-12 rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 overflow-hidden flex items-center justify-center">
+            <div className="relative w-12 h-12 shrink-0 rounded-lg bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 overflow-hidden flex items-center justify-center">
               {eventLogoUrl ? (
                 <Image
                   src={eventLogoUrl}
@@ -193,11 +193,11 @@ export function ProjectsView({
               )}
             </div>
           )}
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+          <div className="min-w-0">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white wrap-break-word">
               {projectsTitle}
             </h2>
-            <div className="flex items-center gap-2 mt-2">
+            <div className="flex flex-wrap items-center gap-2 mt-2">
               {/* Hackathon Date & Time Badge; falls back to the single
                   judging-end date for events without start/end set */}
               {startDateTime && endDateTime ? (

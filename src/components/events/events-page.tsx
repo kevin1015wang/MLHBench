@@ -264,7 +264,7 @@ export function EventsPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {currentEvents.map(({ event, status }) => {
           const projectCount = getProjectCount(event.id);
           const href = `/events/${event.id}`;
@@ -417,7 +417,7 @@ export function EventsPage() {
             <div className="h-px flex-1 bg-border" />
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
             {pastEvents.map(({ event, status }) => {
               const projectCount = getProjectCount(event.id);
               const href = `/events/${event.id}`;
