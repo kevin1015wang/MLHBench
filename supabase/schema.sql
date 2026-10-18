@@ -55,6 +55,11 @@ create table events (
   state text,
   country text,
 
+  -- The projects table's sort order, shared by everyone judging this event
+  -- (a TanStack SortingState: [{ "id": "<column id>", "desc": bool }]).
+  -- Null means the default, table number ascending.
+  projects_sort jsonb,
+
   constraint events_slug_unique unique (slug),
   constraint events_start_before_end check (starts_at is null or ends_at is null or starts_at < ends_at)
 );

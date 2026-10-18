@@ -17,8 +17,14 @@ import {
 } from "@tanstack/react-table";
 import * as React from "react";
 
-interface UseDataTableOptions<TData> extends Partial<TableOptions<TData>> {
+interface UseDataTableOptions<TData>
+  extends Omit<Partial<TableOptions<TData>>, "onSortingChange"> {
   data: TData[];
+  // Notified with the new sorting whenever the table itself changes it
+  // (header clicks, table.setSorting). Not called for the returned
+  // setSorting, so callers can apply externally-sourced sorting without it
+  // echoing back here.
+  onSortingChange?: (sorting: SortingState) => void;
   columns: ColumnDef<TData>[];
   initialState?: {
     sorting?: SortingState;
@@ -38,11 +44,14 @@ export function useDataTable<TData>({
   columns,
   initialState,
   getRowId,
+  onSortingChange,
   ...options
 }: UseDataTableOptions<TData>) {
   const [sorting, setSorting] = React.useState<SortingState>(
     initialState?.sorting ?? [],
   );
+  const sortingRef = React.useRef(sorting);
+  sortingRef.current = sorting;
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     initialState?.columnFilters ?? [],
   );
@@ -65,7 +74,12 @@ export function useDataTable<TData>({
     },
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,
-    onSortingChange: setSorting,
+    onSortingChange: (updater) => {
+      const next =
+        typeof updater === "function" ? updater(sortingRef.current) : updater;
+      setSorting(next);
+      onSortingChange?.(next);
+    },
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     onGlobalFilterChange: setGlobalFilter,

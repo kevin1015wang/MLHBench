@@ -1,7 +1,11 @@
 "use client";
 
-import { flexRender, type Table as TanstackTable } from "@tanstack/react-table";
-import type * as React from "react";
+import {
+  flexRender,
+  type Row,
+  type Table as TanstackTable,
+} from "@tanstack/react-table";
+import * as React from "react";
 import {
   TableBody,
   TableCell,
@@ -17,6 +21,40 @@ interface DataTableProps<TData> {
   children?: React.ReactNode;
   emptyStateMessage?: string;
   getRowClassName?: (row: TData) => string | undefined;
+  // Keep rows where they are when their data changes (e.g. editing the
+  // column being sorted on), re-sorting only when the sort itself changes.
+  freezeRowOrder?: boolean;
+}
+
+// Reorders `rows` to match the last rendered order while the sort is
+// unchanged. Rows that weren't there before go at the end, in sorted order.
+function useFrozenRowOrder<TData>(
+  rows: Row<TData>[],
+  sortingKey: string,
+  enabled: boolean,
+): Row<TData>[] {
+  const previousRef = React.useRef<{ sortingKey: string; ids: string[] }>(null);
+  const ordered = React.useMemo(() => {
+    const previous = previousRef.current;
+    if (!enabled || !previous || previous.sortingKey !== sortingKey) {
+      return rows;
+    }
+    const position = new Map(previous.ids.map((id, index) => [id, index]));
+    const fallback = previous.ids.length;
+    return rows
+      .map((row, index) => ({
+        row,
+        rank: position.get(row.id) ?? fallback + index,
+      }))
+      .sort((a, b) => a.rank - b.rank)
+      .map(({ row }) => row);
+  }, [rows, sortingKey, enabled]);
+
+  React.useEffect(() => {
+    previousRef.current = { sortingKey, ids: ordered.map((row) => row.id) };
+  }, [ordered, sortingKey]);
+
+  return ordered;
 }
 
 export function DataTable<TData>({
@@ -24,7 +62,14 @@ export function DataTable<TData>({
   children,
   emptyStateMessage,
   getRowClassName,
+  freezeRowOrder = false,
 }: DataTableProps<TData>) {
+  const rows = useFrozenRowOrder(
+    table.getRowModel().rows,
+    JSON.stringify(table.getState().sorting),
+    freezeRowOrder,
+  );
+
   return (
     <div className="data-table-container space-y-4 relative">
       {children}
@@ -63,8 +108,8 @@ export function DataTable<TData>({
               ))}
             </TableHeader>
             <TableBody>
-              {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => {
+              {rows.length ? (
+                rows.map((row) => {
                   const project = row.original as { status?: string };
                   const hasError =
                     project.status === "errored" ||

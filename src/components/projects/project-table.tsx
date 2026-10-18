@@ -1,6 +1,7 @@
 "use client";
 
-import type { Column, ColumnDef } from "@tanstack/react-table";
+import { useQueryClient } from "@tanstack/react-query";
+import type { Column, ColumnDef, SortingState } from "@tanstack/react-table";
 import {
   AlertCircle,
   AlertTriangle,
@@ -49,6 +50,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import type { Json } from "@/database.types";
 import { useAutoSaveField } from "@/hooks/use-auto-save-field";
 import { useDataTable } from "@/hooks/use-data-table";
 import type { PresenceUser } from "@/hooks/use-event-presence";
@@ -68,7 +70,7 @@ import {
   getStatusTooltipMessage,
   parsePrizeResults,
 } from "@/lib/project-utils";
-import type { Project, ProjectProcessingStatus } from "@/lib/store";
+import type { Event, Project, ProjectProcessingStatus } from "@/lib/store";
 import { useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { toTitleCase } from "@/lib/utils/string-utils";
@@ -79,6 +81,27 @@ const JUDGING_FIELDS = new Set<keyof Project>([
   "judging_rating",
   "judging_notes",
 ]);
+
+const DEFAULT_SORTING: SortingState = [{ id: "table_number", desc: false }];
+
+// events.projects_sort is untyped jsonb; only trust a well-formed
+// SortingState, so a bad value falls back to the default.
+function parseSorting(value: Json | null | undefined): SortingState | null {
+  if (!Array.isArray(value)) return null;
+  const sorting: SortingState = [];
+  for (const entry of value) {
+    if (
+      !entry ||
+      typeof entry !== "object" ||
+      Array.isArray(entry) ||
+      typeof entry.id !== "string"
+    ) {
+      return null;
+    }
+    sorting.push({ id: entry.id, desc: entry.desc === true });
+  }
+  return sorting;
+}
 
 // Persists a single project field: updates the local store immediately, then
 // writes to the database. Used by the auto-save hook for each judging field.
@@ -1339,17 +1362,46 @@ export function ProjectTable({
     return defaultVisibility;
   }, [viewMode]);
 
-  const { table, sorting } = useDataTable({
+  // The sort order is shared by everyone on the event: it lives on the event
+  // row (events.projects_sort) and syncs via realtime, so every judge sees
+  // the same order and it survives refreshes. Falls back to table order,
+  // since that's how judges physically walk the room.
+  const queryClient = useQueryClient();
+  const sharedSortingJson = useStore(
+    (state) => state.events.find((e) => e.id === eventId)?.projects_sort,
+  );
+  const sharedSorting = React.useMemo(
+    () => parseSorting(sharedSortingJson) ?? DEFAULT_SORTING,
+    [sharedSortingJson],
+  );
+
+  const handleSortingChange = React.useCallback(
+    (next: SortingState) => {
+      if (!eventId) return;
+      const projectsSort: Json = next.map(({ id, desc }) => ({ id, desc }));
+      queryClient.setQueriesData<Event[]>({ queryKey: ["events"] }, (old) =>
+        old?.map((e) =>
+          e.id === eventId ? { ...e, projects_sort: projectsSort } : e,
+        ),
+      );
+      void (async () => {
+        const { createClient } = await import("@/lib/supabase/client");
+        const { error } = await createClient()
+          .from("events")
+          .update({ projects_sort: projectsSort })
+          .eq("id", eventId);
+        if (error) console.error("Failed to save shared sorting:", error);
+      })();
+    },
+    [eventId, queryClient],
+  );
+
+  const { table, setSorting } = useDataTable({
     data: filteredData,
     columns,
+    onSortingChange: handleSortingChange,
     initialState: {
-      // Use persisted sorting if available so sort direction is restored per
-      // event; otherwise default to table order, since that's how judges
-      // physically walk the room.
-      sorting: persistedState.sorting?.map((sort) => ({
-        id: sort.id,
-        desc: !!sort.desc,
-      })) ?? [{ id: "table_number", desc: false }],
+      sorting: sharedSorting,
       columnPinning: {
         left: ["select", "favorite"],
         right: viewMode === "judging" ? ["notes"] : ["actions", "notes"],
@@ -1377,25 +1429,16 @@ export function ProjectTable({
     table.getColumn("actions")?.toggleVisibility(!isJudgingView);
   }, [viewMode, table]);
 
-  // Track the last eventId we restored sorting for
-  const lastRestoredSortingEventIdRef = React.useRef<string | null | undefined>(
-    null,
-  );
-
-  // Restore sorting from persisted state when eventId changes, falling back
-  // to table order (same default as the initial mount) when this event has
-  // no persisted sort of its own.
+  // Apply the shared sort when it loads, when another judge changes it, or
+  // when switching events. setSorting (not table.setSorting) so this doesn't
+  // write straight back to the event.
   React.useEffect(() => {
-    if (eventId !== lastRestoredSortingEventIdRef.current && table) {
-      lastRestoredSortingEventIdRef.current = eventId;
-      table.setSorting(
-        persistedState.sorting?.map((sort) => ({
-          id: sort.id,
-          desc: !!sort.desc,
-        })) ?? [{ id: "table_number", desc: false }],
-      );
-    }
-  }, [eventId, persistedState.sorting, table]);
+    setSorting((current) =>
+      JSON.stringify(current) === JSON.stringify(sharedSorting)
+        ? current
+        : sharedSorting,
+    );
+  }, [sharedSorting, setSorting]);
 
   // Save filter state to sessionStorage whenever filters change
   // Skip saving during initial restore to prevent overwriting with empty values
@@ -1422,7 +1465,6 @@ export function ProjectTable({
       judgedBy: judgedBy || undefined,
       showMlhPrizesOnly,
       viewMode,
-      sorting,
     };
 
     saveFilterState(eventId, filterState);
@@ -1438,7 +1480,6 @@ export function ProjectTable({
     judgedBy,
     showMlhPrizesOnly,
     viewMode,
-    sorting,
   ]);
 
   const handleExportCSV = React.useCallback(() => {
@@ -1556,6 +1597,7 @@ export function ProjectTable({
         <DataTable
           table={table}
           emptyStateMessage={emptyStateMessage}
+          freezeRowOrder
           getRowClassName={(project) =>
             cn(
               viewMode === "judging" &&

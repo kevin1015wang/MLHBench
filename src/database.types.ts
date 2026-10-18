@@ -27,6 +27,7 @@ export type Database = {
           judging_ends_at: string | null
           logo_url: string | null
           name: string
+          projects_sort: Json | null
           program: string | null
           registration_url: string | null
           slug: string
@@ -49,6 +50,7 @@ export type Database = {
           judging_ends_at?: string | null
           logo_url?: string | null
           name: string
+          projects_sort?: Json | null
           program?: string | null
           registration_url?: string | null
           slug: string
@@ -71,6 +73,7 @@ export type Database = {
           judging_ends_at?: string | null
           logo_url?: string | null
           name?: string
+          projects_sort?: Json | null
           program?: string | null
           registration_url?: string | null
           slug?: string
