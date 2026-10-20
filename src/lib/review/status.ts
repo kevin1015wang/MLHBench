@@ -4,7 +4,7 @@ import {
   type PrizeReviewResult,
 } from "@/lib/review/prize-results";
 import type { SupabaseClient } from "@/lib/review/types";
-import { createClient as createSupabaseClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function markProcessing(
   supabase: SupabaseClient,
@@ -80,8 +80,10 @@ export async function setProjectStatus(
   return true;
 }
 
+// Runs in after(), outside any user request, so it uses the service role;
+// start-review has already checked the caller can access the event.
 export async function createSupabase() {
-  return createSupabaseClient();
+  return createAdminClient();
 }
 
 export async function resetAgentAugmentedFields(

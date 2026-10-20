@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth/require-role";
+import { getAccessibleEventFilter } from "@/lib/auth/event-access";
+import { requireOnboarded } from "@/lib/auth/require-role";
 import { getSession } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
 import { slugify } from "@/lib/utils/string-utils";
 
 export async function GET(_req: Request) {
@@ -12,40 +12,33 @@ export async function GET(_req: Request) {
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const onboardingError = requireOnboarded(session);
+    if (onboardingError) return onboardingError;
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
-    // Admins see every event; guests only see the ones they've been
-    // granted. Two plain queries rather than an embedded Postgres join --
-    // simpler and matches this codebase's existing query style.
-    let eventIdFilter: string[] | null = null;
-    if (session.user.role === "guest" && session.user.guestId) {
-      const adminSupabase = createAdminClient();
-      const { data: grants, error: grantsError } = await adminSupabase
-        .from("guest_event_access")
-        .select("event_id")
-        .eq("guest_id", session.user.guestId);
-
-      if (grantsError) {
-        console.error("Error fetching guest event access:", grantsError);
-        return NextResponse.json(
-          { error: "Failed to fetch events" },
-          { status: 500 },
-        );
-      }
-
-      eventIdFilter = grants.map((grant) => grant.event_id);
-      if (eventIdFilter.length === 0) {
-        return NextResponse.json({ events: [] });
-      }
+    let filter: Awaited<ReturnType<typeof getAccessibleEventFilter>>;
+    try {
+      filter = await getAccessibleEventFilter(session);
+    } catch (accessError) {
+      console.error("Error resolving accessible events:", accessError);
+      return NextResponse.json(
+        { error: "Failed to fetch events" },
+        { status: 500 },
+      );
     }
 
     let query = supabase
       .from("events")
       .select("*")
       .order("created_at", { ascending: false });
-    if (eventIdFilter) {
-      query = query.in("id", eventIdFilter);
+    if ("ownerIsNull" in filter) {
+      query = query.is("owner_user_id", null);
+    } else {
+      if (filter.eventIds.length === 0) {
+        return NextResponse.json({ events: [] });
+      }
+      query = query.in("id", filter.eventIds);
     }
 
     const { data: events, error } = await query;
@@ -71,8 +64,14 @@ export async function GET(_req: Request) {
 export async function POST(request: Request) {
   try {
     const session = await getSession();
-    const adminError = requireAdmin(session);
-    if (adminError) return adminError;
+    // The admin creates unowned (MLH) events; self-signup users own theirs.
+    const role = session?.user.role;
+    if (role !== "admin" && !(role === "user" && session?.user.userId)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    const onboardingError = requireOnboarded(session);
+    if (onboardingError) return onboardingError;
+    const ownerUserId = role === "user" ? (session?.user.userId ?? null) : null;
 
     const body = await request.json().catch(() => null);
     const name = typeof body?.name === "string" ? body.name.trim() : "";
@@ -95,7 +94,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     const baseSlug = slugify(name) || "event";
     const { data: existingSlugs, error: slugError } = await supabase
@@ -129,6 +128,7 @@ export async function POST(request: Request) {
         ends_at: endsAt,
         logo_url: logoUrl || null,
         judging_ends_at: judgingEndsAt,
+        owner_user_id: ownerUserId,
       })
       .select()
       .single();

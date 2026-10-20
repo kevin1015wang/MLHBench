@@ -9,7 +9,7 @@ export interface PresenceUser {
   userId: string;
   name: string;
   avatarUrl?: string | null;
-  role: "admin" | "guest";
+  role: "admin" | "guest" | "user";
   projectId: string | null;
 }
 

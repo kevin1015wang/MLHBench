@@ -2,11 +2,15 @@ import { NextResponse } from "next/server";
 import Papa from "papaparse";
 
 import type { Database } from "@/database.types";
-import { requireEventAccess } from "@/lib/auth/guest-access";
+import {
+  getEventOwnership,
+  getPrizeCategoriesForOwner,
+  requireEventAccess,
+} from "@/lib/auth/event-access";
 import { getSession } from "@/lib/auth/session";
 import { getGithubUrls } from "@/lib/github/utils";
 import { matchPrizeCategorySlugs } from "@/lib/prize-category-matching";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { isUrl } from "@/lib/utils/string-utils";
 
 const DEFAULT_PRIZE_COLUMN = "Opt-In Prizes";
@@ -98,7 +102,21 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
+
+    let prizeCategories: PrizeCategory[];
+    try {
+      const event = await getEventOwnership(eventId.trim());
+      prizeCategories = await getPrizeCategoriesForOwner(
+        event?.owner_user_id ?? null,
+      );
+    } catch (prizeError) {
+      console.error("Failed to fetch prize categories", prizeError);
+      return NextResponse.json(
+        { error: "Failed to fetch prize categories" },
+        { status: 500 },
+      );
+    }
 
     // Delete existing projects for this event
     const { error: deleteError } = await supabase
@@ -110,18 +128,6 @@ export async function POST(request: Request) {
       console.error("Failed to delete existing projects", deleteError);
       return NextResponse.json(
         { error: "Failed to clear existing projects" },
-        { status: 500 },
-      );
-    }
-
-    const { data: prizeCategories, error: prizeError } = await supabase
-      .from("prize_categories")
-      .select("slug, alias_slugs");
-
-    if (prizeError) {
-      console.error("Failed to fetch prize categories", prizeError);
-      return NextResponse.json(
-        { error: "Failed to fetch prize categories" },
         { status: 500 },
       );
     }
@@ -138,7 +144,7 @@ export async function POST(request: Request) {
         mapRecordToProject(
           eventId.trim(),
           record,
-          prizeCategories ?? [],
+          prizeCategories,
           prizeColumn,
         ),
       );

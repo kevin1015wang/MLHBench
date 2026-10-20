@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
+import { useSession } from "@/hooks/use-session";
 import { getProjects, recomputePrizeTracks } from "@/lib/data-service";
 import { extractMlhCandidateSlugs } from "@/lib/prize-category-matching";
 import { deslugify } from "@/lib/project-utils";
@@ -20,6 +21,8 @@ import { PrizeCategoryDialog } from "./prize-category-dialog";
 
 export function PrizeCategoriesPage() {
   useDashboardData(null);
+  const { user } = useSession();
+  const isAdmin = user?.role === "admin";
 
   const {
     prizeCategories,
@@ -91,6 +94,14 @@ export function PrizeCategoriesPage() {
       ),
     [prizeCategories],
   );
+
+  // RLS also returns categories this user can see but not edit: the global
+  // catalog, plus the private ones of event owners who invited them.
+  const canEditCategory = (category: PrizeCategory) =>
+    isAdmin
+      ? category.owner_user_id === null
+      : category.owner_user_id === user?.userId;
+  const editableCategories = sortedCategories.filter(canEditCategory);
 
   // Projects only carry a denormalized snapshot of which catalog slugs they
   // matched at CSV-import time, so adding/editing a category or alias here
@@ -183,8 +194,9 @@ export function PrizeCategoriesPage() {
             Prize Categories
           </h1>
           <p className="text-muted-foreground mt-1">
-            Configure the MLH prize tracks the AI review agent grades projects
-            against.
+            {isAdmin
+              ? "Configure the MLH prize tracks the AI review agent grades projects against."
+              : "Add your own prize tracks for the AI review agent to grade projects against. Bench's built-in MLH tracks are always available too."}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -213,13 +225,13 @@ export function PrizeCategoriesPage() {
       <MissingPrizeSlugsCard
         missingSlugs={missingSlugs}
         events={events}
-        prizeCategories={sortedCategories}
+        prizeCategories={editableCategories}
         onCreateNew={(slug) => {
           setCreatingFrom({ name: deslugify(slug), slug });
           setIsCreateDialogOpen(true);
         }}
         onAddToExisting={handleAddToExisting}
-        onHide={handleHide}
+        onHide={isAdmin ? handleHide : undefined}
       />
 
       <div className="space-y-3">
@@ -234,6 +246,13 @@ export function PrizeCategoriesPage() {
                   <Badge variant="secondary" className="font-mono text-xs">
                     {category.slug}
                   </Badge>
+                  {!isAdmin && !canEditCategory(category) && (
+                    <Badge variant="outline" className="text-xs">
+                      {category.owner_user_id === null
+                        ? "Built-in"
+                        : "Shared with you"}
+                    </Badge>
+                  )}
                 </div>
                 {(category.alias_slugs ?? []).length > 0 && (
                   <div className="flex flex-wrap gap-1 pt-1">
@@ -265,26 +284,28 @@ export function PrizeCategoriesPage() {
                   {category.system_prompt}
                 </p>
               </div>
-              <div className="flex items-center gap-1 shrink-0">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => setEditingCategory(category)}
-                  aria-label="Edit prize category"
-                >
-                  <Pencil className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                  onClick={() => setDeletingCategory(category)}
-                  aria-label="Delete prize category"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
+              {canEditCategory(category) && (
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => setEditingCategory(category)}
+                    aria-label="Edit prize category"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => setDeletingCategory(category)}
+                    aria-label="Delete prize category"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
             </div>
           </Card>
         ))}

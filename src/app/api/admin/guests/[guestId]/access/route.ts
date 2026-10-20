@@ -25,6 +25,19 @@ export async function POST(
     }
 
     const supabase = createAdminClient();
+
+    // Guests are the admin's own judges, so they can only be granted the
+    // admin-run (unowned) events -- never a self-signup user's event.
+    const { data: event, error: eventError } = await supabase
+      .from("events")
+      .select("id")
+      .eq("id", eventId)
+      .is("owner_user_id", null)
+      .maybeSingle();
+    if (eventError || !event) {
+      return NextResponse.json({ error: "Event not found" }, { status: 404 });
+    }
+
     const { error } = await supabase
       .from("guest_event_access")
       .insert({ guest_id: guestId, event_id: eventId });

@@ -1,8 +1,8 @@
-import { openrouter } from "@openrouter/ai-sdk-provider";
 import { generateObject, generateText } from "ai";
 import { z } from "zod";
 // import { google } from "@ai-sdk/google";
 // import { getDoAI, getDoAIModelName } from "@/lib/ai/doai";
+import { REVIEW_MODEL_ID } from "@/lib/ai/openrouter";
 import { setProjectStatus } from "@/lib/review/status";
 import type { ReviewAgent } from "@/lib/review/types";
 import { codeReviewSystemPrompt } from "@/prompts/code-review";
@@ -329,7 +329,7 @@ export const codeReviewAgent: ReviewAgent<
 
   try {
     // const doai = getDoAI();
-    const model = openrouter("google/gemini-2.5-flash");
+    const model = context.openrouter(REVIEW_MODEL_ID);
     const data = await generateObjectWithRetry({
       model,
       schema: codeReviewSchema,

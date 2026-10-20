@@ -1,8 +1,46 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth/require-role";
-import { getSession } from "@/lib/auth/session";
-import { createClient } from "@/lib/supabase/server";
+import { getPrizeCategoryOwner } from "@/lib/auth/require-role";
+import { getSession, type SessionData } from "@/lib/auth/session";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { slugify } from "@/lib/utils/string-utils";
+
+// Only the category's owner may edit or delete it: the admin for the
+// global catalog, a user for their own. 404 for anything you can't own so
+// other users' category ids don't leak.
+async function requireCategoryOwner(
+  session: SessionData | null,
+  prizeCategoryId: string,
+) {
+  const ownerUserId = getPrizeCategoryOwner(session);
+  if (ownerUserId === undefined) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  const supabase = createAdminClient();
+  const query = supabase
+    .from("prize_categories")
+    .select("id")
+    .eq("id", prizeCategoryId);
+  const { data, error } = await (ownerUserId
+    ? query.eq("owner_user_id", ownerUserId)
+    : query.is("owner_user_id", null)
+  ).maybeSingle();
+
+  if (error) {
+    console.error("Error checking prize category ownership:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
+  }
+  if (!data) {
+    return NextResponse.json(
+      { error: "Prize category not found" },
+      { status: 404 },
+    );
+  }
+  return null;
+}
 
 export async function PATCH(
   request: Request,
@@ -10,10 +48,9 @@ export async function PATCH(
 ) {
   try {
     const session = await getSession();
-    const adminError = requireAdmin(session);
-    if (adminError) return adminError;
-
     const { prizeCategoryId } = await params;
+    const ownerError = await requireCategoryOwner(session, prizeCategoryId);
+    if (ownerError) return ownerError;
     const body = await request.json().catch(() => null);
 
     const updates: Record<string, unknown> = {};
@@ -75,7 +112,7 @@ export async function PATCH(
       );
     }
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     const { data: prizeCategory, error } = await supabase
       .from("prize_categories")
@@ -109,12 +146,11 @@ export async function DELETE(
 ) {
   try {
     const session = await getSession();
-    const adminError = requireAdmin(session);
-    if (adminError) return adminError;
-
     const { prizeCategoryId } = await params;
+    const ownerError = await requireCategoryOwner(session, prizeCategoryId);
+    if (ownerError) return ownerError;
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     const { error } = await supabase
       .from("prize_categories")

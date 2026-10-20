@@ -9,15 +9,17 @@ import { useSession } from "@/hooks/use-session";
 export default function Page() {
   const router = useRouter();
   const { user, isLoading } = useSession();
-  const isAdmin = user?.role === "admin";
+  // The admin curates the global catalog; self-signup users manage their
+  // own private categories alongside it. Guests can't edit either.
+  const canManageCategories = user?.role === "admin" || user?.role === "user";
 
   useEffect(() => {
-    if (!isLoading && !isAdmin) {
+    if (!isLoading && !canManageCategories) {
       router.replace("/events");
     }
-  }, [isLoading, isAdmin, router]);
+  }, [isLoading, canManageCategories, router]);
 
-  if (isLoading || !isAdmin) {
+  if (isLoading || !canManageCategories) {
     return null;
   }
 

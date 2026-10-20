@@ -1,3 +1,4 @@
+import type { OpenRouterProvider } from "@openrouter/ai-sdk-provider";
 import { validateGithubRepoAgent } from "@/lib/review/agents/1-validate-github-repo";
 import { hackingTimelineAgent } from "@/lib/review/agents/2-hacking-timeline";
 import { codeReviewAgent } from "@/lib/review/agents/3-code-review";
@@ -10,7 +11,10 @@ import {
 } from "@/lib/review/status";
 import type { ProjectWithEvent, ReviewContext } from "@/lib/review/types";
 
-export async function startProjectReview(project: ProjectWithEvent) {
+export async function startProjectReview(
+  project: ProjectWithEvent,
+  openrouter: OpenRouterProvider,
+) {
   const supabase = await createSupabase();
   const github = createGithub();
 
@@ -25,7 +29,7 @@ export async function startProjectReview(project: ProjectWithEvent) {
       project.github_url ?? "N/A"
     }.`,
   );
-  const context: ReviewContext = { supabase, github, project };
+  const context: ReviewContext = { supabase, github, project, openrouter };
 
   // Keep in-memory context in sync after reset.
   context.project.description_accuracy_level = null;

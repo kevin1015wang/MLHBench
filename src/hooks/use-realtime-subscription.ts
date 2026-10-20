@@ -41,6 +41,24 @@ export function useRealtimeSubscription() {
 
       console.log("Setting up Supabase Realtime subscription...");
 
+      // Realtime authorizes postgres_changes against the JWT sent with the
+      // channel join. On a fresh page load the join can otherwise go out
+      // before /api/auth/supabase-token answers, registering the channel as
+      // the anon role -- which RLS denies, so every change then arrives
+      // blanked with "Error 401: Unauthorized". Resolve the token first.
+      void supabase.realtime
+        .setAuth()
+        .then(() => {
+          if (isUnmountingRef.current) return;
+          subscribe();
+        })
+        .catch((error) => {
+          console.error("Failed to authorize realtime subscription:", error);
+          attemptReconnect();
+        });
+    };
+
+    const subscribe = () => {
       const channel = supabase
         .channel("dashboard-realtime")
         .on(

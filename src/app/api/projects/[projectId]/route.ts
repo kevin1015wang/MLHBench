@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { requireEventAccess } from "@/lib/auth/guest-access";
+import { requireEventAccess } from "@/lib/auth/event-access";
 import { getSession } from "@/lib/auth/session";
 import { getGithubUrls } from "@/lib/github/utils";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { isUrl } from "@/lib/utils/string-utils";
 
 // Edits the same minimal field set the manual "Add Project" flow supports
@@ -18,7 +18,7 @@ export async function PATCH(
     const session = await getSession();
     const { projectId } = await params;
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     const { data: existingProject, error: fetchError } = await supabase
       .from("projects")

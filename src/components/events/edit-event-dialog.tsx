@@ -3,6 +3,7 @@
 import { X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { EventGuestAccess } from "@/components/events/event-guest-access";
+import { EventMembers } from "@/components/events/event-members";
 import {
   DEFAULT_PRIZE_COLUMN,
   PrizeColumnSelect,
@@ -345,10 +346,18 @@ export function EditEventDialog({
             disabled={isSaving}
           />
 
-          <div className="space-y-2">
-            <Label>Guest Access</Label>
-            {event && <EventGuestAccess eventId={event.id} />}
-          </div>
+          {event &&
+            (event.owner_user_id ? (
+              <div className="space-y-2">
+                <Label>Judges</Label>
+                <EventMembers eventId={event.id} />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label>Guest Access</Label>
+                <EventGuestAccess eventId={event.id} />
+              </div>
+            ))}
 
           {error && (
             <div className="bg-destructive/10 border border-destructive/30 text-destructive text-sm p-3 rounded-md">

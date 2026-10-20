@@ -1,5 +1,3 @@
-import { NextResponse } from "next/server";
-import type { SessionData } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function hasGuestEventAccess(
@@ -39,26 +37,4 @@ export async function chargeGuestAiRun(guestId: string): Promise<boolean> {
     return false;
   }
   return data === true;
-}
-
-// Guards routes guests are allowed to use (add project, CSV import, start
-// review), scoped to whichever event the action targets. Admins always
-// pass; guests only pass for events they've been granted; anyone else is
-// rejected. Returns a response to short-circuit the handler, or null to
-// proceed.
-export async function requireEventAccess(
-  session: SessionData | null,
-  eventId: string,
-) {
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  if (session.user.role === "admin") {
-    return null;
-  }
-  if (session.user.role === "guest" && session.user.guestId) {
-    const allowed = await hasGuestEventAccess(session.user.guestId, eventId);
-    if (allowed) return null;
-  }
-  return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 }

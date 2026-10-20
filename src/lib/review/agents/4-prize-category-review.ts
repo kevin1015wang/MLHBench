@@ -1,9 +1,10 @@
-import { openrouter } from "@openrouter/ai-sdk-provider";
 import { generateObject } from "ai";
 import { z } from "zod";
 import type { Database } from "@/database.types";
 // import { google } from "@ai-sdk/google";
 // import { getDoAI, getDoAIModelName } from "@/lib/ai/doai";
+import { REVIEW_MODEL_ID } from "@/lib/ai/openrouter";
+import { getPrizeCategoriesForOwner } from "@/lib/auth/event-access";
 import { grepAny } from "@/lib/review/grep-tools";
 import {
   markPrizeProcessing,
@@ -140,15 +141,15 @@ export async function prizeCategoryReviewAgent(
   const markedProcessing = await markPrizeProcessing(context, prizeSlugs);
   if (!markedProcessing) return { ok: false as const };
 
-  const { data: prizeCategories, error } = await context.supabase
-    .from("prize_categories")
-    .select("slug, name, system_prompt, find_words")
-    .in("slug", prizeSlugs);
-
-  if (error) {
+  let prizeCategories: PrizeCategoryRow[];
+  try {
+    prizeCategories = await getPrizeCategoriesForOwner(
+      context.project.event?.owner_user_id ?? null,
+    );
+  } catch (error) {
     console.error("Failed to fetch prize categories", { prizeSlugs, error });
     const message = `Failed to fetch prize categories: ${
-      error.message ?? "unknown error"
+      error instanceof Error ? error.message : "unknown error"
     }`;
     await Promise.all(
       prizeSlugs.map((slug) => persistPrizeError(context, slug, message)),
@@ -156,7 +157,7 @@ export async function prizeCategoryReviewAgent(
     return { ok: false as const };
   }
 
-  const categoryBySlug = (prizeCategories ?? []).reduce<
+  const categoryBySlug = prizeCategories.reduce<
     Record<string, PrizeCategoryRow>
   >((acc, category) => {
     acc[category.slug] = category;
@@ -257,7 +258,7 @@ export async function prizeCategoryReviewAgent(
     const { object } = await generateObject({
       // model: google("gemini-2.5-flash"),
       // model: doai.chat(getDoAIModelName()),
-      model: openrouter("google/gemini-2.5-flash"),
+      model: context.openrouter(REVIEW_MODEL_ID),
       schema,
       system: systemPrompt,
       prompt,

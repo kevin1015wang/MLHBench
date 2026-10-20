@@ -31,6 +31,31 @@ create type description_accuracy_level as enum (
   'high'
 );
 
+-- Self-signup Google accounts (anyone who isn't ALLOWED_LOGIN_EMAIL). The
+-- admin isn't stored here; guests stay in their own table. Only ever
+-- read/written server-side via the service role -- the encrypted OpenRouter
+-- key lives on this row.
+create table users (
+  id uuid primary key default gen_random_uuid(),
+  google_sub text not null,
+  email text not null,
+  first_name text not null default '',
+  last_name text not null default '',
+  avatar_url text,
+
+  -- AES-256-GCM ciphertext (see src/lib/crypto/secret-box.ts), keyed by the
+  -- server-only API_KEY_ENCRYPTION_KEY env var. last4 is for display only.
+  openrouter_key_encrypted text,
+  openrouter_key_last4 text,
+
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  last_login_at timestamptz not null default now(),
+
+  constraint users_google_sub_unique unique (google_sub),
+  constraint users_email_unique unique (email)
+);
+
 create table events (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
@@ -60,12 +85,34 @@ create table events (
   -- Null means the default, table number ascending.
   projects_sort jsonb,
 
+  -- Null = an admin-run (MLH) event; otherwise the self-signup user who owns
+  -- it and whose OpenRouter key pays for its AI reviews.
+  owner_user_id uuid references users(id) on delete cascade,
+
   constraint events_slug_unique unique (slug),
   constraint events_start_before_end check (starts_at is null or ends_at is null or starts_at < ends_at)
 );
 
 create index events_created_at_idx on events(created_at desc);
 create index events_slug_idx on events(slug);
+create index events_owner_user_idx on events(owner_user_id);
+
+-- Co-judges an event owner has invited by email. user_id is filled in when
+-- someone with that (Google-verified) email signs in, so owners can invite
+-- people before they've ever logged in.
+create table event_members (
+  id uuid primary key default gen_random_uuid(),
+  event_id uuid not null references events(id) on delete cascade,
+  email text not null,
+  user_id uuid references users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+
+  constraint event_members_event_email_unique unique (event_id, email),
+  constraint event_members_email_format check (email ~* '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$')
+);
+
+create index event_members_user_idx on event_members(user_id);
+create index event_members_pending_email_idx on event_members(email) where user_id is null;
 
 -- Guest accounts: a second, lightweight identity type alongside the single
 -- Google-authenticated admin (Kevin, gated by ALLOWED_LOGIN_EMAIL -- see
@@ -207,14 +254,19 @@ create table prize_categories (
 
   system_prompt text not null,
 
+  -- Null = a global category the admin curates (visible to everyone);
+  -- otherwise private to that user and the co-judges on their events.
+  owner_user_id uuid references users(id) on delete cascade,
+
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
 
-  constraint prize_categories_slug_unique unique (slug),
-  constraint prize_categories_name_unique unique (name)
+  constraint prize_categories_owner_slug_unique unique nulls not distinct (owner_user_id, slug),
+  constraint prize_categories_owner_name_unique unique nulls not distinct (owner_user_id, name)
 );
 
 create index prize_categories_slug_idx on prize_categories(slug);
+create index prize_categories_owner_idx on prize_categories(owner_user_id);
 
 -- Prize-name slugs (derived from projects' raw opt_in_prizes text via
 -- extractMlhCandidateSlugs()) that an admin has reviewed and dismissed as
@@ -277,32 +329,160 @@ create table project_judges (
 
 create index project_judges_event_idx on project_judges(event_id);
 
--- Anon/publishable key is used for almost all reads and writes (no
--- service-role key for these tables), so RLS must permit the anon role to
--- select/insert/update/delete on them. See README "Notes & tips".
+-- Row level security. The browser talks to Supabase with a short-lived JWT
+-- the app server mints from the bench_session cookie (see
+-- src/lib/auth/supabase-token.ts), carrying:
+--   role         = 'authenticated'
+--   app_role     = 'admin' | 'guest' | 'user'
+--   app_uid      = guests.id / users.id (absent for the admin)
+--   app_judge_id = the session user id written to project_judges.judge_id
+-- Nothing is reachable with only the public key. Server-side API routes use
+-- the service-role client (src/lib/supabase/admin.ts) and do their own
+-- authorization checks (src/lib/auth/event-access.ts).
+
+create or replace function bench_app_role()
+returns text
+language sql
+stable
+as $$
+  select coalesce(auth.jwt() ->> 'app_role', '');
+$$;
+
+create or replace function bench_uid()
+returns uuid
+language sql
+stable
+as $$
+  select nullif(auth.jwt() ->> 'app_uid', '')::uuid;
+$$;
+
+-- security definer so policies on events can call it without recursing
+-- into events' own RLS, and so it can read the service-role-only
+-- event_members / guest_event_access tables.
+create or replace function can_access_event(p_event_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select case bench_app_role()
+    when 'admin' then exists (
+      select 1 from events e
+      where e.id = p_event_id and e.owner_user_id is null
+    )
+    when 'user' then exists (
+      select 1 from events e
+      where e.id = p_event_id and e.owner_user_id = bench_uid()
+    ) or exists (
+      select 1 from event_members m
+      where m.event_id = p_event_id and m.user_id = bench_uid()
+    )
+    when 'guest' then exists (
+      select 1 from guest_event_access g
+      where g.event_id = p_event_id and g.guest_id = bench_uid()
+    )
+    else false
+  end;
+$$;
+
+-- Global categories are readable by anyone signed in; a user's private
+-- categories by them and by co-judges on any event they own (so the
+-- projects table can label those prize tracks).
+create or replace function can_read_prize_category(p_owner_user_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select case
+    when bench_app_role() = '' then false
+    when p_owner_user_id is null then true
+    when bench_app_role() <> 'user' then false
+    when p_owner_user_id = bench_uid() then true
+    else exists (
+      select 1 from event_members m
+      join events e on e.id = m.event_id
+      where m.user_id = bench_uid() and e.owner_user_id = p_owner_user_id
+    )
+  end;
+$$;
+
 alter table events enable row level security;
 alter table projects enable row level security;
 alter table prize_categories enable row level security;
 alter table project_rankings enable row level security;
 alter table project_judges enable row level security;
 alter table ignored_prize_slugs enable row level security;
-
-create policy "anon full access" on events for all to anon using (true) with check (true);
-create policy "anon full access" on projects for all to anon using (true) with check (true);
-create policy "anon full access" on prize_categories for all to anon using (true) with check (true);
-create policy "anon full access" on project_rankings for all to anon using (true) with check (true);
-create policy "anon full access" on project_judges for all to anon using (true) with check (true);
-create policy "anon full access" on ignored_prize_slugs for all to anon using (true) with check (true);
-
--- guests/guest_event_access are the one exception: they gate authentication
--- and per-guest AI run quotas, so an "anon full access" policy here would
--- let any guest grant themselves unlimited quota or access to any event via
--- a raw Supabase call, bypassing every app-level check entirely. RLS is
--- enabled with NO policies defined for anon, which defaults to deny -- these
--- tables are only ever read/written server-side via the service-role client
--- (src/lib/supabase/admin.ts), which bypasses RLS.
 alter table guests enable row level security;
 alter table guest_event_access enable row level security;
+alter table users enable row level security;
+alter table event_members enable row level security;
+
+-- Nothing is reachable with just the public key any more.
+revoke all on events, projects, prize_categories, project_rankings,
+  project_judges, ignored_prize_slugs, guests, guest_event_access, users,
+  event_members
+  from anon;
+
+-- Account/access tables stay service-role only (no policies = deny).
+revoke all on guests, guest_event_access, users, event_members from authenticated;
+
+-- events: create/edit/delete go through the API (owner checks there); the
+-- one write the browser makes is the shared projects-table sort order.
+revoke insert, update, delete on events from authenticated;
+grant update (projects_sort) on events to authenticated;
+create policy "event members read" on events
+  for select to authenticated using (can_access_event(id));
+create policy "event members update sort" on events
+  for update to authenticated
+  using (can_access_event(id)) with check (can_access_event(id));
+
+create policy "event members full access" on projects
+  for all to authenticated
+  using (can_access_event(event_id)) with check (can_access_event(event_id));
+
+create policy "event members full access" on project_rankings
+  for all to authenticated
+  using (can_access_event(event_id)) with check (can_access_event(event_id));
+
+-- Judges can only record themselves as the judge.
+create policy "event members full access" on project_judges
+  for all to authenticated
+  using (can_access_event(event_id))
+  with check (
+    can_access_event(event_id)
+    and judge_id = auth.jwt() ->> 'app_judge_id'
+  );
+
+-- prize_categories / ignored_prize_slugs: read-only from the browser;
+-- writes go through the API.
+revoke insert, update, delete on prize_categories, ignored_prize_slugs from authenticated;
+create policy "visible categories read" on prize_categories
+  for select to authenticated using (can_read_prize_category(owner_user_id));
+create policy "signed in read" on ignored_prize_slugs
+  for select to authenticated using (true);
+
+-- Event images are uploaded straight from the browser, which now sends the
+-- 'authenticated' role instead of 'anon'. Upserts need select + update too.
+-- Guarded since storage policies aren't part of this repo's schema.sql.
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'storage' and tablename = 'objects'
+      and policyname = 'bench event-images insert'
+  ) then
+    create policy "bench event-images insert" on storage.objects
+      for insert to authenticated with check (bucket_id = 'event-images');
+    create policy "bench event-images select" on storage.objects
+      for select to authenticated using (bucket_id = 'event-images');
+    create policy "bench event-images update" on storage.objects
+      for update to authenticated using (bucket_id = 'event-images');
+  end if;
+end $$;
+
 
 -- The app's live "Processing Projects" view relies on Supabase Realtime
 -- (useRealtimeSubscription) pushing postgres_changes events for status/result

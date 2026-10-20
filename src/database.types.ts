@@ -10,10 +10,49 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
+    PostgrestVersion: "14.15"
   }
   public: {
     Tables: {
+      event_members: {
+        Row: {
+          created_at: string
+          email: string
+          event_id: string
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          event_id: string
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          event_id?: string
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_members_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       events: {
         Row: {
           background_url: string | null
@@ -27,8 +66,9 @@ export type Database = {
           judging_ends_at: string | null
           logo_url: string | null
           name: string
-          projects_sort: Json | null
+          owner_user_id: string | null
           program: string | null
+          projects_sort: Json | null
           registration_url: string | null
           slug: string
           starts_at: string | null
@@ -50,8 +90,9 @@ export type Database = {
           judging_ends_at?: string | null
           logo_url?: string | null
           name: string
-          projects_sort?: Json | null
+          owner_user_id?: string | null
           program?: string | null
+          projects_sort?: Json | null
           registration_url?: string | null
           slug: string
           starts_at?: string | null
@@ -73,8 +114,9 @@ export type Database = {
           judging_ends_at?: string | null
           logo_url?: string | null
           name?: string
-          projects_sort?: Json | null
+          owner_user_id?: string | null
           program?: string | null
+          projects_sort?: Json | null
           registration_url?: string | null
           slug?: string
           starts_at?: string | null
@@ -84,43 +126,15 @@ export type Database = {
           updated_at?: string
           website_url?: string | null
         }
-        Relationships: []
-      }
-      guests: {
-        Row: {
-          ai_run_count: number
-          ai_run_quota: number
-          created_at: string
-          display_name: string
-          email: string
-          id: string
-          password_hash: string
-          password_salt: string
-          updated_at: string
-        }
-        Insert: {
-          ai_run_count?: number
-          ai_run_quota?: number
-          created_at?: string
-          display_name?: string
-          email: string
-          id?: string
-          password_hash: string
-          password_salt: string
-          updated_at?: string
-        }
-        Update: {
-          ai_run_count?: number
-          ai_run_quota?: number
-          created_at?: string
-          display_name?: string
-          email?: string
-          id?: string
-          password_hash?: string
-          password_salt?: string
-          updated_at?: string
-        }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "events_owner_user_id_fkey"
+            columns: ["owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       guest_event_access: {
         Row: {
@@ -158,6 +172,42 @@ export type Database = {
           },
         ]
       }
+      guests: {
+        Row: {
+          ai_run_count: number
+          ai_run_quota: number
+          created_at: string
+          display_name: string
+          email: string
+          id: string
+          password_hash: string
+          password_salt: string
+          updated_at: string
+        }
+        Insert: {
+          ai_run_count?: number
+          ai_run_quota?: number
+          created_at?: string
+          display_name?: string
+          email: string
+          id?: string
+          password_hash: string
+          password_salt: string
+          updated_at?: string
+        }
+        Update: {
+          ai_run_count?: number
+          ai_run_quota?: number
+          created_at?: string
+          display_name?: string
+          email?: string
+          id?: string
+          password_hash?: string
+          password_salt?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ignored_prize_slugs: {
         Row: {
           created_at: string
@@ -183,6 +233,7 @@ export type Database = {
           find_words: string[]
           id: string
           name: string
+          owner_user_id: string | null
           short_name: string
           slug: string
           system_prompt: string
@@ -194,6 +245,7 @@ export type Database = {
           find_words?: string[]
           id?: string
           name: string
+          owner_user_id?: string | null
           short_name?: string
           slug: string
           system_prompt: string
@@ -205,12 +257,124 @@ export type Database = {
           find_words?: string[]
           id?: string
           name?: string
+          owner_user_id?: string | null
           short_name?: string
           slug?: string
           system_prompt?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "prize_categories_owner_user_id_fkey"
+            columns: ["owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_judges: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          judge_avatar_url: string | null
+          judge_id: string
+          judge_name: string
+          judge_role: string
+          last_judged_at: string
+          project_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          judge_avatar_url?: string | null
+          judge_id: string
+          judge_name: string
+          judge_role?: string
+          last_judged_at?: string
+          project_id: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          judge_avatar_url?: string | null
+          judge_id?: string
+          judge_name?: string
+          judge_role?: string
+          last_judged_at?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_judges_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_judges_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_rankings: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          prize_category_id: string
+          project_id: string
+          rank: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          prize_category_id: string
+          project_id: string
+          rank: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          prize_category_id?: string
+          project_id?: string
+          rank?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_rankings_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_rankings_prize_category_id_fkey"
+            columns: ["prize_category_id"]
+            isOneToOne: false
+            referencedRelation: "prize_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_rankings_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       projects: {
         Row: {
@@ -355,120 +519,61 @@ export type Database = {
           },
         ]
       }
-      project_judges: {
+      users: {
         Row: {
+          avatar_url: string | null
           created_at: string
-          event_id: string
+          email: string
+          first_name: string
+          google_sub: string
           id: string
-          judge_avatar_url: string | null
-          judge_id: string
-          judge_name: string
-          judge_role: string
-          last_judged_at: string
-          project_id: string
-        }
-        Insert: {
-          created_at?: string
-          event_id: string
-          id?: string
-          judge_avatar_url?: string | null
-          judge_id: string
-          judge_name: string
-          judge_role?: string
-          last_judged_at?: string
-          project_id: string
-        }
-        Update: {
-          created_at?: string
-          event_id?: string
-          id?: string
-          judge_avatar_url?: string | null
-          judge_id?: string
-          judge_name?: string
-          judge_role?: string
-          last_judged_at?: string
-          project_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "project_judges_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "events"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "project_judges_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      project_rankings: {
-        Row: {
-          created_at: string
-          event_id: string
-          id: string
-          prize_category_id: string
-          project_id: string
-          rank: number
+          last_login_at: string
+          last_name: string
+          openrouter_key_encrypted: string | null
+          openrouter_key_last4: string | null
           updated_at: string
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string
-          event_id: string
+          email: string
+          first_name?: string
+          google_sub: string
           id?: string
-          prize_category_id: string
-          project_id: string
-          rank: number
+          last_login_at?: string
+          last_name?: string
+          openrouter_key_encrypted?: string | null
+          openrouter_key_last4?: string | null
           updated_at?: string
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string
-          event_id?: string
+          email?: string
+          first_name?: string
+          google_sub?: string
           id?: string
-          prize_category_id?: string
-          project_id?: string
-          rank?: number
+          last_login_at?: string
+          last_name?: string
+          openrouter_key_encrypted?: string | null
+          openrouter_key_last4?: string | null
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "project_rankings_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
-            referencedRelation: "events"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "project_rankings_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "project_rankings_prize_category_id_fkey"
-            columns: ["prize_category_id"]
-            isOneToOne: false
-            referencedRelation: "prize_categories"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      charge_guest_ai_run: {
-        Args: {
-          p_guest_id: string
-        }
+      bench_app_role: { Args: never; Returns: string }
+      bench_uid: { Args: never; Returns: string }
+      can_access_event: { Args: { p_event_id: string }; Returns: boolean }
+      can_read_prize_category: {
+        Args: { p_owner_user_id: string }
         Returns: boolean
       }
+      charge_guest_ai_run: { Args: { p_guest_id: string }; Returns: boolean }
     }
     Enums: {
       complexity_rating: "invalid" | "beginner" | "intermediate" | "advanced"
@@ -479,9 +584,8 @@ export type Database = {
         | "processing:prize_category_review"
         | "invalid:github_inaccessible"
         | "invalid:rule_violation"
-        | "processed"
         | "errored"
-      run_status: "queued" | "running" | "succeeded" | "failed" | "canceled"
+        | "processed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -497,12 +601,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -526,11 +630,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -551,11 +655,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -576,11 +680,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -593,11 +697,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -617,10 +721,9 @@ export const Constants = {
         "processing:prize_category_review",
         "invalid:github_inaccessible",
         "invalid:rule_violation",
-        "processed",
         "errored",
+        "processed",
       ],
-      run_status: ["queued", "running", "succeeded", "failed", "canceled"],
     },
   },
 } as const

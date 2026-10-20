@@ -301,7 +301,8 @@ export function ProjectTable({
   const { toggleFavoriteProject, toggleUnconsideredProject, projectJudges } =
     useStore();
   const { user } = useSession();
-  const isAdmin = user?.role === "admin";
+  // Guests' AI runs are quota-limited, so only they lose "Run all".
+  const canRunAll = user?.role === "admin" || user?.role === "user";
 
   // Load persisted filter state when eventId changes
   const persistedState = React.useMemo(() => {
@@ -1528,7 +1529,11 @@ export function ProjectTable({
   const hasNoProjects = filteredData.length === 0;
   const hasFailedProjects = failedInvalidErroredProjects.length > 0;
 
-  const { showProcessingModal } = useStore();
+  // Mirrors ProcessingModal's own open condition, so the overlay can never
+  // outlive the modal it backs.
+  const showProcessingModal = useStore(
+    (state) => state.showProcessingModal && state.processingProjects.length > 0,
+  );
 
   // Check if we're in judging view with no results
   const isJudgingViewWithNoResults =
@@ -1548,7 +1553,7 @@ export function ProjectTable({
       >
         <DataTableToolbar
           table={table}
-          onRunAll={isAdmin ? handleRunAll : undefined}
+          onRunAll={canRunAll ? handleRunAll : undefined}
           onRunSelected={(ids) => onBatchRun(ids)}
           onRerunFailed={handleRerunFailed}
           onImport={viewMode === "judging" ? handleExportCSV : onImport}

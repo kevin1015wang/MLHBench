@@ -27,7 +27,9 @@ interface MissingPrizeSlugsCardProps {
     slug: string,
     category: PrizeCategory,
   ) => void | Promise<void>;
-  readonly onHide: (slug: string) => void | Promise<void>;
+  // Hiding a slug is global (ignored_prize_slugs), so admin-only; the
+  // button is omitted when this isn't passed.
+  readonly onHide?: (slug: string) => void | Promise<void>;
 }
 
 export function MissingPrizeSlugsCard({
@@ -132,15 +134,17 @@ export function MissingPrizeSlugsCard({
                     ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                  aria-label="Hide prize slug"
-                  onClick={() => onHide(slug)}
-                >
-                  <X className="w-4 h-4" />
-                </Button>
+                {onHide && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    aria-label="Hide prize slug"
+                    onClick={() => onHide(slug)}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                )}
               </div>
             </div>
           ))}

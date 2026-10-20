@@ -1,16 +1,16 @@
 import { NextResponse } from "next/server";
-import { requireEventAccess } from "@/lib/auth/guest-access";
+import { requireEventAccess } from "@/lib/auth/event-access";
 import { getSession } from "@/lib/auth/session";
 import { getGithubUrls } from "@/lib/github/utils";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { isUrl } from "@/lib/utils/string-utils";
 
 // Manual "add project on the fly" path -- for late submissions/walk-ins that
 // never went through the CSV import. Deliberately minimal: only
 // project_title is required, everything else (table, links, one contact,
 // tracks) is optional, matching how CSV-imported projects can have any of
-// these fields blank too. Available to admins for any event, and to guests
-// for events they've been granted access to.
+// these fields blank too. Available to anyone judging the event (see
+// requireEventAccess).
 export async function POST(request: Request) {
   try {
     const session = await getSession();
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
       .filter(Boolean);
     const submitterLastName = rest.join(" ");
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     const { data: project, error } = await supabase
       .from("projects")

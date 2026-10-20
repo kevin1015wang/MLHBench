@@ -6,6 +6,7 @@ import {
   setSession,
   toSessionData,
 } from "@/lib/auth/session";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 const buildErrorRedirect = (req: NextRequest, code: string) => {
   const url = new URL("/login", req.url);
@@ -83,35 +84,111 @@ export async function GET(req: NextRequest) {
     "kevin1015wang@gmail.com";
   const normalizedEmail = profile.email?.trim().toLowerCase();
 
-  if (!normalizedEmail || normalizedEmail !== allowedEmail) {
-    return buildErrorRedirect(req, "unauthorized_email");
+  if (!normalizedEmail) {
+    return buildErrorRedirect(req, "profile_fetch_failed");
   }
 
-  if (profile.email_verified === false) {
+  // Self-signup accounts are keyed to (and invites are claimed by) the
+  // email address, so it has to be one Google has actually verified.
+  if (profile.email_verified !== true) {
     return buildErrorRedirect(req, "email_not_verified");
   }
 
   const [fallbackFirstName, ...fallbackLastNameParts] = (profile.name || "")
     .split(" ")
     .filter(Boolean);
+  const firstName = profile.given_name || fallbackFirstName || "User";
+  const lastName = profile.family_name || fallbackLastNameParts.join(" ") || "";
 
-  await setSession(
-    toSessionData({
-      access_token: tokenJson.access_token,
-      refresh_token: tokenJson.refresh_token,
-      user: {
-        id: profile.sub,
-        firstName: profile.given_name || fallbackFirstName || "User",
-        lastName: profile.family_name || fallbackLastNameParts.join(" ") || "",
-        email: profile.email,
-        avatarUrl: profile.picture || null,
-        // Only ALLOWED_LOGIN_EMAIL can ever complete this flow (checked
-        // above), so anyone who gets here is the admin.
-        role: "admin",
-      },
-    }),
-  );
+  if (normalizedEmail === allowedEmail) {
+    await setSession(
+      toSessionData({
+        access_token: tokenJson.access_token,
+        refresh_token: tokenJson.refresh_token,
+        user: {
+          id: profile.sub,
+          firstName,
+          lastName,
+          email: profile.email,
+          avatarUrl: profile.picture || null,
+          role: "admin",
+        },
+      }),
+    );
+  } else {
+    const user = await upsertSelfSignupUser({
+      googleSub: profile.sub,
+      email: normalizedEmail,
+      firstName,
+      lastName,
+      avatarUrl: profile.picture || null,
+    });
+    if (!user) return buildErrorRedirect(req, "account_setup_failed");
+
+    await setSession(
+      toSessionData({
+        access_token: tokenJson.access_token,
+        refresh_token: tokenJson.refresh_token,
+        user: {
+          id: user.id,
+          firstName,
+          lastName,
+          email: normalizedEmail,
+          avatarUrl: profile.picture || null,
+          role: "user",
+          userId: user.id,
+          hasOpenRouterKey: !!user.openrouter_key_encrypted,
+        },
+      }),
+    );
+  }
 
   const redirectUrl = new URL("/events", req.url);
   return NextResponse.redirect(redirectUrl);
+}
+
+// Creates the users row on first sign-in (refreshing profile details on
+// later ones), then claims any co-judge invites already sent to this email.
+async function upsertSelfSignupUser(profile: {
+  googleSub: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  avatarUrl: string | null;
+}) {
+  const supabase = createAdminClient();
+  const now = new Date().toISOString();
+
+  const { data: user, error } = await supabase
+    .from("users")
+    .upsert(
+      {
+        google_sub: profile.googleSub,
+        email: profile.email,
+        first_name: profile.firstName,
+        last_name: profile.lastName,
+        avatar_url: profile.avatarUrl,
+        last_login_at: now,
+        updated_at: now,
+      },
+      { onConflict: "google_sub" },
+    )
+    .select("id, openrouter_key_encrypted")
+    .single();
+
+  if (error || !user) {
+    console.error("Failed to upsert self-signup user:", error);
+    return null;
+  }
+
+  const { error: claimError } = await supabase
+    .from("event_members")
+    .update({ user_id: user.id })
+    .eq("email", profile.email)
+    .is("user_id", null);
+  if (claimError) {
+    console.error("Failed to claim pending event invites:", claimError);
+  }
+
+  return user;
 }

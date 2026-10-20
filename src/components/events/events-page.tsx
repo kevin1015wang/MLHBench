@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
 import { useSession } from "@/hooks/use-session";
+import { canCreateEvents, canManageEvent } from "@/lib/event-permissions";
 import { type Event, useStore } from "@/lib/store";
 import { DeleteEventDialog } from "./delete-event-dialog";
 import { EditEventDialog } from "./edit-event-dialog";
@@ -151,7 +152,7 @@ function EventImage({
 export function EventsPage() {
   const { events, projects, setEvents, setProjects } = useStore();
   const { user } = useSession();
-  const isAdmin = user?.role === "admin";
+  const canCreate = canCreateEvents(user);
   const [searchQuery, setSearchQuery] = useState("");
   const [isNewEventDialogOpen, setIsNewEventDialogOpen] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
@@ -219,7 +220,7 @@ export function EventsPage() {
           </p>
         </div>
 
-        {isAdmin && (
+        {canCreate && (
           <div className="shrink-0 flex gap-2">
             <Button onClick={() => setIsNewEventDialogOpen(true)}>
               New Event
@@ -228,7 +229,7 @@ export function EventsPage() {
         )}
       </div>
 
-      {isAdmin && (
+      {canCreate && (
         <NewEventDialog
           open={isNewEventDialogOpen}
           onOpenChange={setIsNewEventDialogOpen}
@@ -321,7 +322,7 @@ export function EventsPage() {
                               </Badge>
                             );
                           })()}
-                        {isAdmin && (
+                        {canManageEvent(user, event) && (
                           <>
                             <Button
                               variant="ghost"
@@ -452,7 +453,7 @@ export function EventsPage() {
                             <Badge variant="secondary" className="shrink-0">
                               {status.label}
                             </Badge>
-                            {isAdmin && (
+                            {canManageEvent(user, event) && (
                               <>
                                 <Button
                                   variant="ghost"
@@ -540,13 +541,25 @@ export function EventsPage() {
         </div>
       )}
 
-      {currentEvents.length === 0 && pastEvents.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">
-            No events found matching your criteria
-          </p>
-        </div>
-      )}
+      {currentEvents.length === 0 &&
+        pastEvents.length === 0 &&
+        (events.length === 0 && canCreate ? (
+          <div className="text-center py-12 space-y-3">
+            <p className="text-muted-foreground">
+              No events yet. Create one to start judging projects, or ask an
+              organizer to invite you to theirs.
+            </p>
+            <Button onClick={() => setIsNewEventDialogOpen(true)}>
+              Create your first event
+            </Button>
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">
+              No events found matching your criteria
+            </p>
+          </div>
+        ))}
     </div>
   );
 }

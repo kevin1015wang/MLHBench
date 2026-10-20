@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth/require-role";
+import { requireEventManager } from "@/lib/auth/event-access";
 import { getSession } from "@/lib/auth/session";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function PATCH(
   request: Request,
@@ -9,10 +9,10 @@ export async function PATCH(
 ) {
   try {
     const session = await getSession();
-    const adminError = requireAdmin(session);
-    if (adminError) return adminError;
-
     const { eventId } = await params;
+    const accessError = await requireEventManager(session, eventId);
+    if (accessError) return accessError;
+
     const body = await request.json().catch(() => null);
 
     const updates: Record<string, string | null> = {};
@@ -49,7 +49,7 @@ export async function PATCH(
       );
     }
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     const { data: event, error } = await supabase
       .from("events")
@@ -88,9 +88,6 @@ export async function DELETE(
 ) {
   try {
     const session = await getSession();
-    const adminError = requireAdmin(session);
-    if (adminError) return adminError;
-
     const { eventId } = await params;
 
     if (!eventId) {
@@ -100,7 +97,10 @@ export async function DELETE(
       );
     }
 
-    const supabase = await createClient();
+    const accessError = await requireEventManager(session, eventId);
+    if (accessError) return accessError;
+
+    const supabase = createAdminClient();
 
     const { error } = await supabase.from("events").delete().eq("id", eventId);
 

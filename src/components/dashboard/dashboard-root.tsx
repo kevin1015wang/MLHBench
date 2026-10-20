@@ -217,6 +217,10 @@ function DashboardContent({ children }: DashboardRootProps) {
     toast.info(startMessage);
     addNotification({ message: startMessage, type: "info" });
 
+    // A batch-wide failure (e.g. the event has no OpenRouter key) fails
+    // every project the same way -- toast it once, not once per project.
+    const toastedErrors = new Set<string>();
+
     const results = await Promise.all(
       projectIds.map(async (projectId) => {
         const projectName =
@@ -228,7 +232,14 @@ function DashboardContent({ children }: DashboardRootProps) {
           const message =
             error instanceof Error ? error.message : "Failed to start review";
           dequeueProcessingProject(projectId);
-          toast.error(`Failed to start review for ${projectName}: ${message}`);
+          if (!toastedErrors.has(message)) {
+            toastedErrors.add(message);
+            toast.error(
+              projectIds.length === 1
+                ? `Failed to start review for ${projectName}: ${message}`
+                : `Failed to start reviews: ${message}`,
+            );
+          }
           addNotification({
             message: `Failed to start review for ${projectName}`,
             type: "error",
@@ -239,6 +250,10 @@ function DashboardContent({ children }: DashboardRootProps) {
     );
 
     const successCount = results.filter((res) => res.ok).length;
+    // Nothing actually started, so there's nothing for the processing modal
+    // to track -- leaving it "shown" would keep the table blurred and the
+    // toolbar disabled with no modal to dismiss.
+    if (successCount === 0) setShowProcessingModal(false);
     if (successCount > 0) {
       const successMessage =
         successCount === 1

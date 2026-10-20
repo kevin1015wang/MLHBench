@@ -1,35 +1,46 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth/require-role";
+import { getPrizeCategoriesForOwner } from "@/lib/auth/event-access";
+import { getPrizeCategoryOwner } from "@/lib/auth/require-role";
 import { getSession } from "@/lib/auth/session";
 import { matchPrizeCategorySlugs } from "@/lib/prize-category-matching";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 // Re-derives standardized_opt_in_prizes for every project from its
 // already-stored raw opt_in_prizes text against the current prize_categories
 // catalog -- so newly added categories/aliases (or newly hidden slugs) apply
 // retroactively to already-imported projects without re-uploading the CSV.
+// Scoped to the caller's own events: the admin's unowned events against the
+// global catalog, or a user's events against global + their own categories.
 export async function POST() {
   try {
     const session = await getSession();
-    const adminError = requireAdmin(session);
-    if (adminError) return adminError;
+    const ownerUserId = getPrizeCategoryOwner(session);
+    if (ownerUserId === undefined) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
-    const [
-      { data: prizeCategories, error: categoriesError },
-      { data: projects, error: projectsError },
-    ] = await Promise.all([
-      supabase.from("prize_categories").select("slug, alias_slugs"),
-      supabase
-        .from("projects")
-        .select("id, opt_in_prizes, standardized_opt_in_prizes"),
-    ]);
+    const eventsQuery = supabase.from("events").select("id");
+    const { data: ownedEvents, error: eventsError } = await (ownerUserId
+      ? eventsQuery.eq("owner_user_id", ownerUserId)
+      : eventsQuery.is("owner_user_id", null));
+    if (eventsError) throw eventsError;
 
-    if (categoriesError || projectsError) {
+    const prizeCategories = await getPrizeCategoriesForOwner(ownerUserId);
+
+    const { data: projects, error: projectsError } = await supabase
+      .from("projects")
+      .select("id, opt_in_prizes, standardized_opt_in_prizes")
+      .in(
+        "event_id",
+        ownedEvents.map((event) => event.id),
+      );
+
+    if (projectsError) {
       console.error(
         "Failed to fetch data for prize track recompute",
-        categoriesError ?? projectsError,
+        projectsError,
       );
       return NextResponse.json(
         { error: "Failed to fetch prize categories or projects" },
@@ -49,7 +60,7 @@ export async function POST() {
         id: project.id,
         next: matchPrizeCategorySlugs(
           project.opt_in_prizes ?? "",
-          prizeCategories ?? [],
+          prizeCategories,
         ),
         current: project.standardized_opt_in_prizes ?? [],
       }))

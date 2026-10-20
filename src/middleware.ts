@@ -16,9 +16,17 @@ const isPublicPath = (pathname: string) => {
   );
 };
 
-const isSessionValid = (value: string) => {
+type SessionPayload = {
+  expiresAt?: number;
+  user?: { role?: string; hasOpenRouterKey?: boolean };
+};
+
+// Decodes the session payload for routing only. The signature isn't checked
+// here (no node:crypto on the edge), so this never grants access by itself
+// -- every API route re-verifies the cookie via getSession().
+const readSession = (value: string): SessionPayload | null => {
   const [encodedPayload] = value.split(".");
-  if (!encodedPayload) return false;
+  if (!encodedPayload) return null;
 
   const normalized = encodedPayload.replace(/-/g, "+").replace(/_/g, "/");
   const padded = normalized.padEnd(
@@ -27,13 +35,16 @@ const isSessionValid = (value: string) => {
   );
 
   try {
-    const payload = JSON.parse(atob(padded)) as { expiresAt?: number };
-    if (!payload.expiresAt) return true;
-    return Date.now() < payload.expiresAt;
+    const payload = JSON.parse(atob(padded)) as SessionPayload;
+    if (payload.expiresAt && Date.now() >= payload.expiresAt) return null;
+    return payload;
   } catch {
-    return false;
+    return null;
   }
 };
+
+// Self-signup users have to add an OpenRouter key before anything else.
+const ONBOARDING_PATH = "/settings";
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -51,10 +62,19 @@ export function middleware(req: NextRequest) {
   }
 
   const sessionCookie = req.cookies.get("bench_session")?.value;
-  if (!sessionCookie || !isSessionValid(sessionCookie)) {
+  const session = sessionCookie ? readSession(sessionCookie) : null;
+  if (!session) {
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("redirect", pathname);
     return NextResponse.redirect(loginUrl);
+  }
+
+  if (
+    session.user?.role === "user" &&
+    !session.user.hasOpenRouterKey &&
+    pathname !== ONBOARDING_PATH
+  ) {
+    return NextResponse.redirect(new URL(ONBOARDING_PATH, req.url));
   }
 
   return NextResponse.next();

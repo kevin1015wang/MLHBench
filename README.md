@@ -112,13 +112,16 @@ pnpm install
 ```
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...   # anon/public key that can read/write per your RLS
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...   # public key; on its own it can't read anything (see RLS below)
+SUPABASE_SERVICE_ROLE_KEY=...   # server-only; API routes and the review pipeline
+SUPABASE_JWT_SECRET=...         # Project Settings -> JWT Keys -> Legacy JWT Secret
 
 # Auth (Google OAuth)
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 AUTH_SECRET=...  # random secret used to sign the local session cookie
-ALLOWED_LOGIN_EMAIL=kevin1015wang@gmail.com
+ALLOWED_LOGIN_EMAIL=kevin1015wang@gmail.com   # the admin; anyone else gets a self-signup account
+API_KEY_ENCRYPTION_KEY=...   # `openssl rand -base64 32`; encrypts users' OpenRouter keys
 # Optional override for callback host (falls back to NEXT_PUBLIC_VERCEL_URL or localhost)
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 
@@ -126,7 +129,7 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 GITHUB_TOKEN=...   # bot token for Octokit and repo metadata calls
 
 # AI providers
-OPENROUTER_API_KEY=...   # used by OpenRouter provider in code review/prize agents
+OPENROUTER_API_KEY=...   # pays for reviews on admin-run events; user events use the owner's key
 DO_AI_API_KEY=...        # optional: DigitalOcean model key if you switch models
 DO_AI_MODEL=openai-gpt-oss-120b
 DO_AI_BASE_URL=https://inference.do-ai.run/v1
@@ -140,7 +143,8 @@ Visit `http://localhost:3000/login` and sign in with Google.
 
 ## Core workflows
 
-- **Sign in**: `/api/auth/login` → Google → `/api/auth/callback` sets a signed cookie session (`src/lib/auth/session.ts`) for the approved account.
+- **Sign in**: `/api/auth/login` → Google → `/api/auth/callback` sets a signed cookie session (`src/lib/auth/session.ts`). `ALLOWED_LOGIN_EMAIL` signs in as the admin; any other verified Google account gets a self-signup `users` row.
+- **Self-signup accounts**: users create their own events, invite co-judges by email (Edit Event → Judges), keep private prize categories alongside the admin's global ones, and add an OpenRouter key in Settings. AI reviews on an event are always billed to the event owner's key.
 - **Browse events**: `/events` lists active/past events with search and a “My Events” filter (matches staff email).
 - **Import projects**: From an event, open “Import Projects” and upload the Devpost submissions CSV. The import endpoint rewrites team member headers, validates required columns, deletes existing projects for the event, and bulk inserts cleaned rows with inferred GitHub links and prize opt-ins.
 - **Run analysis**: Click “Run” on a project or “Process all / Re-run failed” in the table toolbar. This posts to `/api/projects/start-review`, which:
@@ -162,7 +166,7 @@ Visit `http://localhost:3000/login` and sign in with Google.
 - `pnpm gen-types` – regenerate `src/database.types.ts` from Supabase (project id is pinned in the script).
 
 ## Notes & tips
-- Supabase RLS must permit the anon key to read/write the `events`, `projects`, and `prize_categories` tables used by the API routes, or replace the publishable key with a service role key in server calls.
+- Access control: the browser's Supabase client sends a short-lived JWT minted by `/api/auth/supabase-token` (`src/lib/auth/supabase-token.ts`), and RLS policies in `supabase/schema.sql` scope every table (and Realtime) to the events that user can access. API routes use the service-role client and check access via `src/lib/auth/event-access.ts`. Apply schema changes to an existing database with the files in `supabase/migrations/`.
 - The Devpost CSV importer truncates existing projects for the event before inserting; use with care in shared environments.
 - Realtime is wired via `useRealtimeSubscription`; if you disable Realtime in Supabase, fall back to manual refetches.
 - AI calls rely on OpenRouter by default; ensure quotas are available or swap the model/provider in `src/lib/review/agents/3-code-review.ts` and `4-prize-category-review.ts`.

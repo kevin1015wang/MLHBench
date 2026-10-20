@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth/require-role";
+import {
+  getEventOwnership,
+  getPrizeCategoriesForOwner,
+  requireEventManager,
+} from "@/lib/auth/event-access";
 import { getSession } from "@/lib/auth/session";
 import { matchPrizeCategorySlugs } from "@/lib/prize-category-matching";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 // Re-points an already-imported event's prize tracks at a different CSV
 // column. Some events put the MLH prizes somewhere other than "Opt-In
@@ -15,10 +19,9 @@ export async function POST(
 ) {
   try {
     const session = await getSession();
-    const adminError = requireAdmin(session);
-    if (adminError) return adminError;
-
     const { eventId } = await params;
+    const accessError = await requireEventManager(session, eventId);
+    if (accessError) return accessError;
     const body = await request.json().catch(() => null);
     const column = typeof body?.column === "string" ? body.column.trim() : "";
 
@@ -29,20 +32,34 @@ export async function POST(
       );
     }
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
+    const event = await getEventOwnership(eventId);
 
-    const [
-      { data: prizeCategories, error: categoriesError },
-      { data: projects, error: projectsError },
-    ] = await Promise.all([
-      supabase.from("prize_categories").select("slug, alias_slugs"),
-      supabase.from("projects").select("id, csv_row").eq("event_id", eventId),
-    ]);
-
-    if (categoriesError || projectsError) {
+    let prizeCategories: Awaited<ReturnType<typeof getPrizeCategoriesForOwner>>;
+    try {
+      prizeCategories = await getPrizeCategoriesForOwner(
+        event?.owner_user_id ?? null,
+      );
+    } catch (categoriesError) {
       console.error(
-        "Failed to fetch data for prize column remap",
-        categoriesError ?? projectsError,
+        "Failed to fetch prize categories for prize column remap",
+        categoriesError,
+      );
+      return NextResponse.json(
+        { error: "Failed to fetch prize categories or projects" },
+        { status: 500 },
+      );
+    }
+
+    const { data: projects, error: projectsError } = await supabase
+      .from("projects")
+      .select("id, csv_row")
+      .eq("event_id", eventId);
+
+    if (projectsError) {
+      console.error(
+        "Failed to fetch projects for prize column remap",
+        projectsError,
       );
       return NextResponse.json(
         { error: "Failed to fetch prize categories or projects" },
@@ -62,7 +79,7 @@ export async function POST(
         opt_in_prizes: optInPrizes,
         standardized_opt_in_prizes: matchPrizeCategorySlugs(
           optInPrizes,
-          prizeCategories ?? [],
+          prizeCategories,
         ),
       };
     });

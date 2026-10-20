@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth/require-role";
+import { getPrizeCategoryOwner } from "@/lib/auth/require-role";
 import { getSession } from "@/lib/auth/session";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { slugify } from "@/lib/utils/string-utils";
 
 export async function POST(request: Request) {
   try {
     const session = await getSession();
-    const adminError = requireAdmin(session);
-    if (adminError) return adminError;
+    const ownerUserId = getPrizeCategoryOwner(session);
+    if (ownerUserId === undefined) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const body = await request.json().catch(() => null);
     const name = typeof body?.name === "string" ? body.name.trim() : "";
@@ -28,7 +30,7 @@ export async function POST(request: Request) {
       : [];
     const aliasSlugs = Array.isArray(body?.alias_slugs)
       ? Array.from(
-          new Set(
+          new Set<string>(
             body.alias_slugs
               .filter((w: unknown): w is string => typeof w === "string")
               .map((w: string) => slugify(w))
@@ -50,7 +52,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const supabase = await createClient();
+    const supabase = createAdminClient();
 
     const { data: prizeCategory, error } = await supabase
       .from("prize_categories")
@@ -61,6 +63,7 @@ export async function POST(request: Request) {
         system_prompt: systemPrompt,
         find_words: findWords,
         alias_slugs: aliasSlugs,
+        owner_user_id: ownerUserId,
       })
       .select()
       .single();

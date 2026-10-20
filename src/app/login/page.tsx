@@ -39,8 +39,8 @@ export default async function LoginPage(props: LoginPageProps) {
     errorMessage = "Could not load your Google profile.";
   } else if (error === "no_access_token") {
     errorMessage = "No access token returned from Google.";
-  } else if (error === "unauthorized_email") {
-    errorMessage = "This account is not allowed to access Bench.";
+  } else if (error === "account_setup_failed") {
+    errorMessage = "We couldn't set up your account. Please try again.";
   } else if (error === "email_not_verified") {
     errorMessage = "Your Google email address must be verified.";
   } else if (error === "invalid_credentials") {
@@ -86,7 +86,8 @@ export default async function LoginPage(props: LoginPageProps) {
                   Sign in to Bench
                 </h1>
                 <p className="text-sm text-muted-foreground">
-                  One step to access events and review projects.
+                  Sign in with Google to create events and judge hackathon
+                  projects.
                 </p>
               </div>
 
@@ -148,10 +149,6 @@ export default async function LoginPage(props: LoginPageProps) {
               <p className="text-xs text-muted-foreground">
                 Guest accounts are created by the organizer -- ask them for your
                 login if you don&apos;t have one.
-              </p>
-
-              <p className="text-xs text-muted-foreground">
-                You must be logged in to access Bench.
               </p>
             </div>
           </div>

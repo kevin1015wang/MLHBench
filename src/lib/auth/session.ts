@@ -16,13 +16,23 @@ export interface SessionUser {
   // "guest" is an email/password account the admin creates from the
   // guest-management page, scoped to whichever events they've granted via
   // guest_event_access.
-  role: "admin" | "guest";
+  // "user" is anyone else who signs in with Google: they own the events
+  // they create (billed to their own OpenRouter key) plus any they've been
+  // invited to as a co-judge via event_members.
+  role: "admin" | "guest" | "user";
   guestId?: string;
+  // users.id, set for "user" sessions only.
+  userId?: string;
+  // "user" sessions only. Bench is unusable until a self-signup user saves
+  // an OpenRouter key: the middleware routes them to /settings and
+  // requireOnboarded() rejects API calls. Keys can be replaced but not
+  // removed, so once true this never goes stale.
+  hasOpenRouterKey?: boolean;
 }
 
 export interface SessionData {
   user: SessionUser;
-  // Only set for Google-authenticated (admin) sessions; guests have no
+  // Only set for Google-authenticated (admin/user) sessions; guests have no
   // OAuth token. Already unused elsewhere in the app after login regardless.
   accessToken?: string;
   refreshToken?: string;

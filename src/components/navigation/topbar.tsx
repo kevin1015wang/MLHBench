@@ -1,6 +1,6 @@
 "use client";
 
-import { Award, LogOut, Users } from "lucide-react";
+import { Award, LogOut, Settings, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { BenchLogo } from "@/components/icons/bench-logo";
@@ -28,6 +28,7 @@ import {
 import type { PresenceUser } from "@/hooks/use-event-presence";
 import { useSession } from "@/hooks/use-session";
 import type { Event, Project } from "@/lib/store";
+import { clearSupabaseAccessToken } from "@/lib/supabase/client";
 
 interface TopBarProps {
   readonly selectedEvent?: Event;
@@ -44,9 +45,11 @@ export function TopBar({
   const { user, isLoading } = useSession();
   const isEventsPage = pathname === "/events";
   const isAdmin = user?.role === "admin";
+  const isSelfSignupUser = user?.role === "user";
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
+    clearSupabaseAccessToken();
     router.push("/login");
     router.refresh();
   };
@@ -162,7 +165,7 @@ export function TopBar({
                 )}
               </div>
             </DropdownMenuLabel>
-            {isAdmin && (
+            {(isAdmin || isSelfSignupUser) && (
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
@@ -174,15 +177,28 @@ export function TopBar({
                     Prize Categories
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link
-                    href="/admin/guests"
-                    className="cursor-pointer flex items-center"
-                  >
-                    <Users className="mr-2 h-4 w-4 text-current" />
-                    Manage Guests
-                  </Link>
-                </DropdownMenuItem>
+                {isAdmin && (
+                  <DropdownMenuItem asChild>
+                    <Link
+                      href="/admin/guests"
+                      className="cursor-pointer flex items-center"
+                    >
+                      <Users className="mr-2 h-4 w-4 text-current" />
+                      Manage Guests
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+                {isSelfSignupUser && (
+                  <DropdownMenuItem asChild>
+                    <Link
+                      href="/settings"
+                      className="cursor-pointer flex items-center"
+                    >
+                      <Settings className="mr-2 h-4 w-4 text-current" />
+                      Settings
+                    </Link>
+                  </DropdownMenuItem>
+                )}
               </>
             )}
             <DropdownMenuSeparator />
