@@ -53,6 +53,9 @@ export function mintSupabaseToken(session: SessionData) {
       app_role: user.role,
       app_uid: appUid,
       app_judge_id: user.id,
+      // The admin has no users row, so invites to its events are matched by
+      // email instead (is_event_member() in supabase/schema.sql).
+      email: user.role === "admin" ? user.email?.toLowerCase() : undefined,
     }),
   );
   const signature = createHmac("sha256", getJwtSecret())

@@ -212,19 +212,30 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          owner_user_id: string | null
           slug: string
         }
         Insert: {
           created_at?: string
           id?: string
+          owner_user_id?: string | null
           slug: string
         }
         Update: {
           created_at?: string
           id?: string
+          owner_user_id?: string | null
           slug?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "ignored_prize_slugs_owner_user_id_fkey"
+            columns: ["owner_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       prize_categories: {
         Row: {
@@ -569,6 +580,7 @@ export type Database = {
       bench_app_role: { Args: never; Returns: string }
       bench_uid: { Args: never; Returns: string }
       can_access_event: { Args: { p_event_id: string }; Returns: boolean }
+      is_event_member: { Args: { p_event_id: string }; Returns: boolean }
       can_read_prize_category: {
         Args: { p_owner_user_id: string }
         Returns: boolean

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAccessibleEventFilter } from "@/lib/auth/event-access";
+import { getAccessibleEventIds } from "@/lib/auth/event-access";
 import { requireOnboarded } from "@/lib/auth/require-role";
 import { getSession } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -17,9 +17,9 @@ export async function GET(_req: Request) {
 
     const supabase = createAdminClient();
 
-    let filter: Awaited<ReturnType<typeof getAccessibleEventFilter>>;
+    let eventIds: string[];
     try {
-      filter = await getAccessibleEventFilter(session);
+      eventIds = await getAccessibleEventIds(session);
     } catch (accessError) {
       console.error("Error resolving accessible events:", accessError);
       return NextResponse.json(
@@ -27,19 +27,15 @@ export async function GET(_req: Request) {
         { status: 500 },
       );
     }
+    if (eventIds.length === 0) {
+      return NextResponse.json({ events: [] });
+    }
 
-    let query = supabase
+    const query = supabase
       .from("events")
       .select("*")
+      .in("id", eventIds)
       .order("created_at", { ascending: false });
-    if ("ownerIsNull" in filter) {
-      query = query.is("owner_user_id", null);
-    } else {
-      if (filter.eventIds.length === 0) {
-        return NextResponse.json({ events: [] });
-      }
-      query = query.in("id", filter.eventIds);
-    }
 
     const { data: events, error } = await query;
 

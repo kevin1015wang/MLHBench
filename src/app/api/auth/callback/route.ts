@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import {
   buildRedirectUri,
   consumeState,
+  getAdminEmail,
   setSession,
   toSessionData,
 } from "@/lib/auth/session";
@@ -79,9 +80,7 @@ export async function GET(req: NextRequest) {
     picture?: string;
   };
 
-  const allowedEmail =
-    process.env.ALLOWED_LOGIN_EMAIL?.trim().toLowerCase() ||
-    "kevin1015wang@gmail.com";
+  const allowedEmail = getAdminEmail();
   const normalizedEmail = profile.email?.trim().toLowerCase();
 
   if (!normalizedEmail) {

@@ -3,7 +3,7 @@ import {
   getEventOwnership,
   requireEventManager,
 } from "@/lib/auth/event-access";
-import { getSession } from "@/lib/auth/session";
+import { getAdminEmail, getSession } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // Co-judges on a self-signup user's event. Invites are by email and work
@@ -38,7 +38,8 @@ async function listMembers(eventId: string) {
     id: member.id,
     email: member.email,
     created_at: member.created_at,
-    joined: !!member.user_id,
+    // The admin has no users row to link, but can sign in immediately.
+    joined: !!member.user_id || member.email === getAdminEmail(),
     name: member.user
       ? `${member.user.first_name} ${member.user.last_name}`.trim()
       : "",

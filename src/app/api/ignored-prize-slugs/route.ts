@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth/require-role";
+import { getPrizeCategoryOwner } from "@/lib/auth/require-role";
 import { getSession } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { slugify } from "@/lib/utils/string-utils";
@@ -7,8 +7,11 @@ import { slugify } from "@/lib/utils/string-utils";
 export async function POST(request: Request) {
   try {
     const session = await getSession();
-    const adminError = requireAdmin(session);
-    if (adminError) return adminError;
+    // The admin hides a slug for everyone; a user only for themselves.
+    const ownerUserId = getPrizeCategoryOwner(session);
+    if (ownerUserId === undefined) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const body = await request.json().catch(() => null);
     const slug =
@@ -24,7 +27,7 @@ export async function POST(request: Request) {
 
     const { data: ignoredSlug, error } = await supabase
       .from("ignored_prize_slugs")
-      .insert({ slug })
+      .insert({ slug, owner_user_id: ownerUserId })
       .select()
       .single();
 

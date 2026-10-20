@@ -279,9 +279,13 @@ create table ignored_prize_slugs (
   id uuid primary key default gen_random_uuid(),
   slug text not null,
 
+  -- Null = hidden by the admin, for everyone; otherwise hidden only for
+  -- that self-signup user.
+  owner_user_id uuid references users(id) on delete cascade,
+
   created_at timestamptz not null default now(),
 
-  constraint ignored_prize_slugs_slug_unique unique (slug)
+  constraint ignored_prize_slugs_owner_slug_unique unique nulls not distinct (owner_user_id, slug)
 );
 
 -- One row per (project, prize_category) recording where that project ranks
@@ -356,6 +360,28 @@ as $$
   select nullif(auth.jwt() ->> 'app_uid', '')::uuid;
 $$;
 
+-- Whether the caller was invited to this event: by user id for self-signup
+-- users, by (server-signed) email claim for the admin.
+create or replace function is_event_member(p_event_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from event_members m
+    where m.event_id = p_event_id
+      and (
+        (bench_app_role() = 'user' and m.user_id = bench_uid())
+        or (
+          bench_app_role() = 'admin'
+          and m.email = lower(auth.jwt() ->> 'email')
+        )
+      )
+  );
+$$;
+
 -- security definer so policies on events can call it without recursing
 -- into events' own RLS, and so it can read the service-role-only
 -- event_members / guest_event_access tables.
@@ -370,14 +396,11 @@ as $$
     when 'admin' then exists (
       select 1 from events e
       where e.id = p_event_id and e.owner_user_id is null
-    )
+    ) or is_event_member(p_event_id)
     when 'user' then exists (
       select 1 from events e
       where e.id = p_event_id and e.owner_user_id = bench_uid()
-    ) or exists (
-      select 1 from event_members m
-      where m.event_id = p_event_id and m.user_id = bench_uid()
-    )
+    ) or is_event_member(p_event_id)
     when 'guest' then exists (
       select 1 from guest_event_access g
       where g.event_id = p_event_id and g.guest_id = bench_uid()
@@ -399,13 +422,12 @@ as $$
   select case
     when bench_app_role() = '' then false
     when p_owner_user_id is null then true
-    when bench_app_role() <> 'user' then false
-    when p_owner_user_id = bench_uid() then true
-    else exists (
-      select 1 from event_members m
-      join events e on e.id = m.event_id
-      where m.user_id = bench_uid() and e.owner_user_id = p_owner_user_id
+    when bench_app_role() = 'user' and p_owner_user_id = bench_uid() then true
+    when bench_app_role() in ('user', 'admin') then exists (
+      select 1 from events e
+      where e.owner_user_id = p_owner_user_id and is_event_member(e.id)
     )
+    else false
   end;
 $$;
 
@@ -461,8 +483,14 @@ create policy "event members full access" on project_judges
 revoke insert, update, delete on prize_categories, ignored_prize_slugs from authenticated;
 create policy "visible categories read" on prize_categories
   for select to authenticated using (can_read_prize_category(owner_user_id));
-create policy "signed in read" on ignored_prize_slugs
-  for select to authenticated using (true);
+create policy "global or own read" on ignored_prize_slugs
+  for select to authenticated using (
+    bench_app_role() <> ''
+    and (
+      owner_user_id is null
+      or (bench_app_role() = 'user' and owner_user_id = bench_uid())
+    )
+  );
 
 -- Event images are uploaded straight from the browser, which now sends the
 -- 'authenticated' role instead of 'anon'. Upserts need select + update too.

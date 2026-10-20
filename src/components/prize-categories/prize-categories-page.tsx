@@ -101,7 +101,12 @@ export function PrizeCategoriesPage() {
     isAdmin
       ? category.owner_user_id === null
       : category.owner_user_id === user?.userId;
-  const editableCategories = sortedCategories.filter(canEditCategory);
+  // Discovered slugs can be attached as aliases to your own categories or to
+  // any global one (append-only, via /aliases), so users can map their
+  // hackathon's prize wording onto the built-in tracks.
+  const aliasTargetCategories = sortedCategories.filter(
+    (category) => canEditCategory(category) || category.owner_user_id === null,
+  );
 
   // Projects only carry a denormalized snapshot of which catalog slugs they
   // matched at CSV-import time, so adding/editing a category or alias here
@@ -147,15 +152,15 @@ export function PrizeCategoriesPage() {
   };
 
   const handleAddToExisting = async (slug: string, category: PrizeCategory) => {
-    const aliasSlugs = Array.from(
-      new Set([...(category.alias_slugs ?? []), slug]),
-    );
     try {
-      const response = await fetch(`/api/prize-categories/${category.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ alias_slugs: aliasSlugs }),
-      });
+      const response = await fetch(
+        `/api/prize-categories/${category.id}/aliases`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ slug }),
+        },
+      );
       if (!response.ok) {
         const data = await response.json().catch(() => null);
         throw new Error(data?.error || "Failed to add slug to category");
@@ -225,13 +230,13 @@ export function PrizeCategoriesPage() {
       <MissingPrizeSlugsCard
         missingSlugs={missingSlugs}
         events={events}
-        prizeCategories={editableCategories}
+        prizeCategories={aliasTargetCategories}
         onCreateNew={(slug) => {
           setCreatingFrom({ name: deslugify(slug), slug });
           setIsCreateDialogOpen(true);
         }}
         onAddToExisting={handleAddToExisting}
-        onHide={isAdmin ? handleHide : undefined}
+        onHide={handleHide}
       />
 
       <div className="space-y-3">
@@ -246,7 +251,7 @@ export function PrizeCategoriesPage() {
                   <Badge variant="secondary" className="font-mono text-xs">
                     {category.slug}
                   </Badge>
-                  {!isAdmin && !canEditCategory(category) && (
+                  {!canEditCategory(category) && (
                     <Badge variant="outline" className="text-xs">
                       {category.owner_user_id === null
                         ? "Built-in"

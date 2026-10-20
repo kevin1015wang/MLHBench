@@ -75,6 +75,12 @@ const decodeSession = (value: string): SessionData | null => {
   return parsed;
 };
 
+// The Google account that signs in as the admin. Normalized so it can be
+// compared against event_members.email, which is stored lowercased.
+export const getAdminEmail = () =>
+  process.env.ALLOWED_LOGIN_EMAIL?.trim().toLowerCase() ||
+  "kevin1015wang@gmail.com";
+
 export const getSession = async () => {
   const cookieStore = await Promise.resolve(cookies());
   const raw = cookieStore.get(SESSION_COOKIE)?.value;

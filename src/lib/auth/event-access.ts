@@ -8,7 +8,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // supabase/schema.sql. API routes use the service-role client, which
 // bypasses RLS, so every route that touches an event has to check here.
 //
-//   admin -> events with no owner (the admin-run MLH events)
+//   admin -> events with no owner (the admin-run MLH events), or ones a
+//            user invited the admin's email to via event_members
 //   user  -> events they own, or were invited to via event_members
 //   guest -> events granted via guest_event_access
 //
@@ -34,14 +35,25 @@ export async function getEventOwnership(
   return data;
 }
 
-async function isEventMember(userId: string, eventId: string) {
+// Invites match self-signup users by user id, and the admin (which has no
+// users row) by email.
+function memberEventsQuery(session: SessionData) {
   const supabase = createAdminClient();
-  const { data, error } = await supabase
-    .from("event_members")
-    .select("id")
-    .eq("event_id", eventId)
-    .eq("user_id", userId)
-    .maybeSingle();
+  const query = supabase.from("event_members").select("event_id");
+  const { user } = session;
+  if (user.role === "user" && user.userId) {
+    return query.eq("user_id", user.userId);
+  }
+  if (user.role === "admin" && user.email) {
+    return query.eq("email", user.email.toLowerCase());
+  }
+  return null;
+}
+
+async function isEventMember(session: SessionData, eventId: string) {
+  const query = memberEventsQuery(session);
+  if (!query) return false;
+  const { data, error } = await query.eq("event_id", eventId).maybeSingle();
 
   if (error) {
     console.error("Error checking event membership:", error);
@@ -68,8 +80,8 @@ async function canAccessEvent(
   const user = session?.user;
   if (!user) return false;
   if (canManageEvent(session, event)) return true;
-  if (user.role === "user" && user.userId) {
-    return isEventMember(user.userId, event.id);
+  if (user.role === "user" || user.role === "admin") {
+    return isEventMember(session, event.id);
   }
   if (user.role === "guest" && user.guestId) {
     return hasGuestEventAccess(user.guestId, event.id);
@@ -117,15 +129,13 @@ export async function requireEventManager(
   return null;
 }
 
-// Event ids visible to this session, or null for "no filter needed".
-// Mirrors canAccessEvent for list queries.
-export async function getAccessibleEventFilter(session: SessionData) {
+// Event ids visible to this session. Mirrors canAccessEvent for list
+// queries.
+export async function getAccessibleEventIds(
+  session: SessionData,
+): Promise<string[]> {
   const supabase = createAdminClient();
   const { user } = session;
-
-  if (user.role === "admin") {
-    return { ownerIsNull: true as const };
-  }
 
   if (user.role === "guest" && user.guestId) {
     const { data, error } = await supabase
@@ -133,30 +143,32 @@ export async function getAccessibleEventFilter(session: SessionData) {
       .select("event_id")
       .eq("guest_id", user.guestId);
     if (error) throw error;
-    return { eventIds: data.map((row) => row.event_id) };
+    return data.map((row) => row.event_id);
   }
 
-  if (user.role === "user" && user.userId) {
-    const [owned, memberships] = await Promise.all([
-      supabase.from("events").select("id").eq("owner_user_id", user.userId),
-      supabase
-        .from("event_members")
-        .select("event_id")
-        .eq("user_id", user.userId),
-    ]);
-    if (owned.error) throw owned.error;
-    if (memberships.error) throw memberships.error;
-    return {
-      eventIds: Array.from(
-        new Set([
-          ...owned.data.map((row) => row.id),
-          ...memberships.data.map((row) => row.event_id),
-        ]),
-      ),
-    };
+  const managedQuery = supabase.from("events").select("id");
+  let managed: Promise<{ data: { id: string }[] | null; error: unknown }>;
+  if (user.role === "admin") {
+    managed = Promise.resolve(managedQuery.is("owner_user_id", null));
+  } else if (user.role === "user" && user.userId) {
+    managed = Promise.resolve(managedQuery.eq("owner_user_id", user.userId));
+  } else {
+    return [];
   }
 
-  return { eventIds: [] };
+  const membershipsQuery = memberEventsQuery(session);
+  const [owned, memberships] = await Promise.all([
+    managed,
+    membershipsQuery ?? Promise.resolve({ data: [], error: null }),
+  ]);
+  if (owned.error) throw owned.error;
+  if (memberships.error) throw memberships.error;
+  return Array.from(
+    new Set([
+      ...(owned.data ?? []).map((row) => row.id),
+      ...(memberships.data ?? []).map((row) => row.event_id),
+    ]),
+  );
 }
 
 // Prize categories an event's projects are matched and reviewed against:

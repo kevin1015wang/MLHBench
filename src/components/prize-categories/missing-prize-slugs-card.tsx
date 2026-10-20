@@ -27,8 +27,8 @@ interface MissingPrizeSlugsCardProps {
     slug: string,
     category: PrizeCategory,
   ) => void | Promise<void>;
-  // Hiding a slug is global (ignored_prize_slugs), so admin-only; the
-  // button is omitted when this isn't passed.
+  // Hides for everyone when the admin does it, only for yourself otherwise
+  // (see ignored_prize_slugs.owner_user_id). Omitted = no hide button.
   readonly onHide?: (slug: string) => void | Promise<void>;
 }
 
