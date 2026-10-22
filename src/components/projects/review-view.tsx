@@ -301,37 +301,47 @@ function CategoryColumn({
           {category.name}
         </h2>
       </div>
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
-        <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
-          <div className="space-y-2">
-            {itemIds.map((id, index) => {
-              if (id === DIVIDER_ID) {
+      {eligibleFavorites.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-gray-200 dark:border-[#404040] px-4 py-8 text-center text-xs text-muted-foreground">
+          No favorited projects in this track yet. Star a project to rank it
+          here.
+        </div>
+      ) : (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={itemIds}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="space-y-2">
+              {itemIds.map((id, index) => {
+                if (id === DIVIDER_ID) {
+                  return (
+                    <DividerRow
+                      key={id}
+                      unrankedCount={itemIds.length - dividerIndex - 1}
+                    />
+                  );
+                }
+                const project = projectsById.get(id);
+                if (!project) return null;
                 return (
-                  <DividerRow
+                  <RankableRow
                     key={id}
-                    unrankedCount={itemIds.length - dividerIndex - 1}
+                    project={project}
+                    rank={index < dividerIndex ? index + 1 : undefined}
+                    onProjectClick={onProjectClick}
+                    isMultiFirst={multiFirstProjectIds.has(id)}
                   />
                 );
-              }
-              const project = projectsById.get(id);
-              if (!project) return null;
-              return (
-                <RankableRow
-                  key={id}
-                  project={project}
-                  rank={index < dividerIndex ? index + 1 : undefined}
-                  onProjectClick={onProjectClick}
-                  isMultiFirst={multiFirstProjectIds.has(id)}
-                />
-              );
-            })}
-          </div>
-        </SortableContext>
-      </DndContext>
+              })}
+            </div>
+          </SortableContext>
+        </DndContext>
+      )}
     </div>
   );
 }
@@ -350,13 +360,14 @@ export function ReviewView({
   );
 
   // Only categories with a real catalog row (so we have a prize_category_id
-  // to key rankings on) and at least one favorited, eligible project.
+  // to key rankings on) and at least one project in the event opted in --
+  // favorited or not, so every track with entries gets a column.
   const eligibleCategories = React.useMemo(
     () =>
       prizeCategories.filter((cat) =>
-        favoritedProjects.some((p) => getPrizeTracks(p).includes(cat.slug)),
+        projects.some((p) => getPrizeTracks(p).includes(cat.slug)),
       ),
-    [prizeCategories, favoritedProjects],
+    [prizeCategories, projects],
   );
 
   // Projects displayed as #1 in more than one category, worth flagging since
@@ -394,19 +405,10 @@ export function ReviewView({
     return new Set(ids);
   }, [eligibleCategories, favoritedProjects, projectRankings]);
 
-  if (favoritedProjects.length === 0) {
-    return (
-      <div className="rounded-lg border border-dashed border-gray-200 dark:border-[#404040] py-16 text-center text-sm text-muted-foreground">
-        No favorited projects yet. Favorite a project by clicking the star icon
-        for it to show up here.
-      </div>
-    );
-  }
-
   if (eligibleCategories.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-gray-200 dark:border-[#404040] py-16 text-center text-sm text-muted-foreground">
-        No favorited projects have opted into an MLH prize category yet.
+        No projects have opted into an MLH prize category yet.
       </div>
     );
   }
