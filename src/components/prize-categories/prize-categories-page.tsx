@@ -1,17 +1,31 @@
 "use client";
 
-import { Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Eye, EyeOff, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useDashboardData } from "@/hooks/use-dashboard-data";
 import { useSession } from "@/hooks/use-session";
 import { getProjects, recomputePrizeTracks } from "@/lib/data-service";
 import { extractMlhCandidateSlugs } from "@/lib/prize-category-matching";
 import { deslugify } from "@/lib/project-utils";
-import { type PrizeCategory, useStore } from "@/lib/store";
+import {
+  type IgnoredPrizeSlug,
+  type PrizeCategory,
+  useStore,
+} from "@/lib/store";
 import { DeletePrizeCategoryDialog } from "./delete-prize-category-dialog";
 import {
   MissingPrizeSlugsCard,
@@ -24,15 +38,27 @@ export function PrizeCategoriesPage() {
   const { user } = useSession();
   const isAdmin = user?.role === "admin";
 
-  const {
-    prizeCategories,
-    projects,
-    events,
-    ignoredPrizeSlugs,
-    setPrizeCategories,
-    setIgnoredPrizeSlugs,
-    setProjects,
-  } = useStore();
+  const { prizeCategories, projects, events, ignoredPrizeSlugs, setProjects } =
+    useStore();
+  const queryClient = useQueryClient();
+
+  // Write through the React Query cache rather than the store directly:
+  // useDashboardData caches these lists forever and re-syncs the store from
+  // that cache whenever it mounts, so a store-only update vanishes as soon as
+  // you navigate away and back.
+  const updatePrizeCategories = (
+    update: (categories: PrizeCategory[]) => PrizeCategory[],
+  ) =>
+    queryClient.setQueryData<PrizeCategory[]>(["prize_categories"], (old) =>
+      update(old ?? prizeCategories),
+    );
+  const updateIgnoredPrizeSlugs = (
+    update: (slugs: IgnoredPrizeSlug[]) => IgnoredPrizeSlug[],
+  ) =>
+    queryClient.setQueryData<IgnoredPrizeSlug[]>(
+      ["ignored_prize_slugs"],
+      (old) => update(old ?? ignoredPrizeSlugs),
+    );
   const [isRecomputing, setIsRecomputing] = useState(false);
 
   const [editingCategory, setEditingCategory] = useState<PrizeCategory | null>(
@@ -65,17 +91,23 @@ export function PrizeCategoriesPage() {
   // rather than standardized_opt_in_prizes, which only ever holds slugs that
   // are already configured here -- see matchPrizeCategorySlugs. Slugs the
   // admin has explicitly hidden (ignoredPrizeSlugs) are excluded.
-  const missingSlugs = useMemo<MissingSlugInfo[]>(() => {
+  // Every candidate slug on any imported project, with the events it showed
+  // up on -- shared by the missing-configuration card and the hidden dropdown.
+  const eventIdsBySlug = useMemo(() => {
     const bySlug = new Map<string, Set<string>>();
     projects.forEach((project) => {
       extractMlhCandidateSlugs(project.opt_in_prizes ?? "").forEach((slug) => {
-        if (configuredSlugs.has(slug) || hiddenSlugs.has(slug)) return;
         const eventIds = bySlug.get(slug) ?? new Set<string>();
         if (project.event_id) eventIds.add(project.event_id);
         bySlug.set(slug, eventIds);
       });
     });
-    return Array.from(bySlug.entries())
+    return bySlug;
+  }, [projects]);
+
+  const missingSlugs = useMemo<MissingSlugInfo[]>(() => {
+    return Array.from(eventIdsBySlug.entries())
+      .filter(([slug]) => !configuredSlugs.has(slug) && !hiddenSlugs.has(slug))
       .map(([slug, eventIds]) => ({
         slug,
         eventIds: Array.from(eventIds).sort((a, b) =>
@@ -85,7 +117,7 @@ export function PrizeCategoriesPage() {
         ),
       }))
       .sort((a, b) => a.slug.localeCompare(b.slug));
-  }, [projects, configuredSlugs, hiddenSlugs, events]);
+  }, [eventIdsBySlug, configuredSlugs, hiddenSlugs, events]);
 
   const sortedCategories = useMemo(
     () =>
@@ -136,19 +168,18 @@ export function PrizeCategoriesPage() {
   };
 
   const handleSaved = (saved: PrizeCategory) => {
-    const exists = prizeCategories.some((c) => c.id === saved.id);
-    if (exists) {
-      setPrizeCategories(
-        prizeCategories.map((c) => (c.id === saved.id ? saved : c)),
-      );
-    } else {
-      setPrizeCategories([...prizeCategories, saved]);
-    }
+    updatePrizeCategories((categories) =>
+      categories.some((c) => c.id === saved.id)
+        ? categories.map((c) => (c.id === saved.id ? saved : c))
+        : [...categories, saved],
+    );
     void handleRecompute({ silent: true });
   };
 
   const handleDeleted = (deletedId: string) => {
-    setPrizeCategories(prizeCategories.filter((c) => c.id !== deletedId));
+    updatePrizeCategories((categories) =>
+      categories.filter((c) => c.id !== deletedId),
+    );
   };
 
   const handleAddToExisting = async (slug: string, category: PrizeCategory) => {
@@ -185,9 +216,83 @@ export function PrizeCategoriesPage() {
         throw new Error(data?.error || "Failed to hide prize slug");
       }
       const { ignored_prize_slug } = await response.json();
-      setIgnoredPrizeSlugs([...ignoredPrizeSlugs, ignored_prize_slug]);
+      updateIgnoredPrizeSlugs((slugs) =>
+        slugs.some((s) => s.id === ignored_prize_slug.id)
+          ? slugs
+          : [...slugs, ignored_prize_slug],
+      );
     } catch (err) {
       console.error("Failed to hide prize slug:", err);
+    }
+  };
+
+  // Only the slugs this user can unhide: the admin manages the global list, a
+  // user their own (mirrors the DELETE route's owner check).
+  const unhideableSlugs = useMemo(
+    () =>
+      ignoredPrizeSlugs
+        .filter((s) =>
+          isAdmin ? s.owner_user_id === null : s.owner_user_id === user?.userId,
+        )
+        .sort((a, b) => a.slug.localeCompare(b.slug)),
+    [ignoredPrizeSlugs, isAdmin, user?.userId],
+  );
+
+  // Hidden slugs grouped by the event(s) whose projects use them, like the
+  // missing-configuration card. Slugs no imported project uses any more go in
+  // a trailing group.
+  const hiddenSections = useMemo(() => {
+    const byEvent = new Map<string, typeof unhideableSlugs>();
+    unhideableSlugs.forEach((ignored) => {
+      const eventIds = Array.from(eventIdsBySlug.get(ignored.slug) ?? []);
+      (eventIds.length > 0 ? eventIds : [""]).forEach((eventId) => {
+        const list = byEvent.get(eventId) ?? [];
+        list.push(ignored);
+        byEvent.set(eventId, list);
+      });
+    });
+    return Array.from(byEvent.entries())
+      .map(([eventId, slugs]) => ({
+        eventId,
+        eventName: eventId
+          ? (events.find((e) => e.id === eventId)?.name ?? "Unknown event")
+          : "Not on any imported project",
+        slugs,
+      }))
+      .sort((a, b) =>
+        !a.eventId
+          ? 1
+          : !b.eventId
+            ? -1
+            : a.eventName.localeCompare(b.eventName),
+      );
+  }, [unhideableSlugs, eventIdsBySlug, events]);
+
+  const handleUnhide = async (slug: string) => {
+    try {
+      const response = await fetch(
+        `/api/ignored-prize-slugs/${encodeURIComponent(slug)}`,
+        { method: "DELETE" },
+      );
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.error || "Failed to unhide prize slug");
+      }
+      updateIgnoredPrizeSlugs((slugs) =>
+        slugs.filter(
+          (s) =>
+            !(
+              s.slug === slug &&
+              (isAdmin
+                ? s.owner_user_id === null
+                : s.owner_user_id === user?.userId)
+            ),
+        ),
+      );
+      toast.success(`Unhid ${deslugify(slug)}`);
+    } catch (err) {
+      console.error("Failed to unhide prize slug:", err);
+      toast.error("Failed to unhide prize slug");
     }
   };
 
@@ -205,6 +310,47 @@ export function PrizeCategoriesPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {unhideableSlugs.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <EyeOff className="w-4 h-4" />
+                  Hidden ({unhideableSlugs.length})
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="max-h-80 w-72 overflow-y-auto"
+              >
+                <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+                  Hidden prize slugs. Unhide one to configure it again.
+                </DropdownMenuLabel>
+                {hiddenSections.map(({ eventId, eventName, slugs }) => (
+                  <DropdownMenuGroup key={eventId || "none"}>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {eventName}
+                    </DropdownMenuLabel>
+                    {slugs.map((ignored) => (
+                      <DropdownMenuItem
+                        key={ignored.id}
+                        onClick={() => handleUnhide(ignored.slug)}
+                        className="flex items-center justify-between gap-2"
+                      >
+                        <span className="truncate">
+                          {deslugify(ignored.slug)}
+                        </span>
+                        <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+                          <Eye className="w-3 h-3" />
+                          Unhide
+                        </span>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuGroup>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           <Button
             variant="outline"
             onClick={() => handleRecompute()}
