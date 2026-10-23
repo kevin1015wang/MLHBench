@@ -30,6 +30,8 @@ interface MissingPrizeSlugsCardProps {
   // Hides for everyone when the admin does it, only for yourself otherwise
   // (see ignored_prize_slugs.owner_user_id). Omitted = no hide button.
   readonly onHide?: (slug: string) => void | Promise<void>;
+  // Hides every listed slug at once, clearing the card.
+  readonly onHideAll?: (slugs: string[]) => void | Promise<void>;
 }
 
 export function MissingPrizeSlugsCard({
@@ -39,8 +41,10 @@ export function MissingPrizeSlugsCard({
   onCreateNew,
   onAddToExisting,
   onHide,
+  onHideAll,
 }: MissingPrizeSlugsCardProps) {
   const [pendingSlug, setPendingSlug] = useState<string | null>(null);
+  const [isHidingAll, setIsHidingAll] = useState(false);
 
   // Group by event so slugs don't need a per-row event badge -- a slug that
   // shows up on more than one event's projects appears under each of them.
@@ -72,7 +76,31 @@ export function MissingPrizeSlugsCard({
   return (
     <Card className="p-5 border-orange-200 bg-orange-50/50 dark:border-orange-900 dark:bg-orange-950/20 space-y-4">
       <div>
-        <h2 className="font-semibold text-foreground">Missing Configuration</h2>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="font-semibold text-foreground">
+            Missing Configuration
+          </h2>
+          {onHideAll && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 shrink-0 text-foreground/70 hover:text-destructive hover:bg-destructive/10"
+              aria-label="Hide all missing prize slugs"
+              title="Hide all"
+              disabled={isHidingAll}
+              onClick={async () => {
+                setIsHidingAll(true);
+                try {
+                  await onHideAll(missingSlugs.map((info) => info.slug));
+                } finally {
+                  setIsHidingAll(false);
+                }
+              }}
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
         <p className="text-sm text-muted-foreground">
           These prize slugs show up on imported projects but have no matching
           category yet, so review runs will mark them &ldquo;configuration not

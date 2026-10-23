@@ -40,7 +40,7 @@ export function NotificationDrawer() {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="rounded-full">
+        <Button variant="ghost" size="icon" aria-label="Notifications">
           <Bell className="w-5 h-5" />
         </Button>
       </SheetTrigger>

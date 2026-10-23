@@ -226,6 +226,45 @@ export function PrizeCategoriesPage() {
     }
   };
 
+  const handleHideAll = async (slugs: string[]) => {
+    const results = await Promise.allSettled(
+      slugs.map(async (slug) => {
+        const response = await fetch("/api/ignored-prize-slugs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ slug }),
+        });
+        if (!response.ok) {
+          const data = await response.json().catch(() => null);
+          throw new Error(data?.error || "Failed to hide prize slug");
+        }
+        const { ignored_prize_slug } = await response.json();
+        return ignored_prize_slug as IgnoredPrizeSlug;
+      }),
+    );
+    const hidden = results.flatMap((r) =>
+      r.status === "fulfilled" ? [r.value] : [],
+    );
+    updateIgnoredPrizeSlugs((existing) => [
+      ...existing,
+      ...hidden.filter((h) => !existing.some((s) => s.id === h.id)),
+    ]);
+    const failed = results.length - hidden.length;
+    if (failed > 0) {
+      results.forEach((r) => {
+        if (r.status === "rejected")
+          console.error("Failed to hide prize slug:", r.reason);
+      });
+      toast.error(
+        `Hid ${hidden.length} of ${results.length} prize slugs; ${failed} failed`,
+      );
+    } else {
+      toast.success(
+        `Hid ${hidden.length} prize slug${hidden.length === 1 ? "" : "s"}`,
+      );
+    }
+  };
+
   // Only the slugs this user can unhide: the admin manages the global list, a
   // user their own (mirrors the DELETE route's owner check).
   const unhideableSlugs = useMemo(
@@ -383,6 +422,7 @@ export function PrizeCategoriesPage() {
         }}
         onAddToExisting={handleAddToExisting}
         onHide={handleHide}
+        onHideAll={handleHideAll}
       />
 
       <div className="space-y-3">
