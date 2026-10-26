@@ -52,7 +52,13 @@ export async function POST(request: Request) {
       );
     }
 
-    let csvText = await file.text();
+    // The client gzips the CSV to stay under the platform's request size limit
+    let csvText =
+      formData.get("encoding") === "gzip"
+        ? await new Response(
+            file.stream().pipeThrough(new DecompressionStream("gzip")),
+          ).text()
+        : await file.text();
 
     // Determine if we need to fix the headers (projects export has a weird issue with missing headers for team members)
     csvText = fixCsvHeaders(csvText);

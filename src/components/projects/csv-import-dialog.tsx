@@ -64,20 +64,35 @@ export function CSVImportDialog({
       setIsUploading(true);
       setError(null);
 
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("event_id", eventId);
-      formData.append("prize_column", prizeColumn);
-
       try {
+        // Gzip the CSV before upload -- large Devpost exports can exceed the
+        // hosting platform's request body limit (4.5MB on Vercel).
+        const compressed = await new Response(
+          file.stream().pipeThrough(new CompressionStream("gzip")),
+        ).blob();
+
+        const formData = new FormData();
+        formData.append(
+          "file",
+          new File([compressed], `${file.name}.gz`, {
+            type: "application/gzip",
+          }),
+        );
+        formData.append("encoding", "gzip");
+        formData.append("event_id", eventId);
+        formData.append("prize_column", prizeColumn);
+
         const response = await fetch("/api/projects/import-csv", {
           method: "POST",
           body: formData,
         });
 
         if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.error || "Failed to upload CSV");
+          if (response.status === 413) {
+            throw new Error("CSV file is too large to upload");
+          }
+          const data = await response.json().catch(() => null);
+          throw new Error(data?.error || "Failed to upload CSV");
         }
 
         const data = await response.json();
